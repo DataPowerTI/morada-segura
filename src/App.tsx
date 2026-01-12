@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Units from "./pages/Units";
+import Vehicles from "./pages/Vehicles";
 import AccessControl from "./pages/AccessControl";
 import Parcels from "./pages/Parcels";
 import Users from "./pages/Users";
@@ -65,14 +66,22 @@ function AppRoutes() {
             <Units />
           </ProtectedRoute>
         }
-      />
-      <Route
-        path="/portaria"
-        element={
-          <ProtectedRoute>
-            <AccessControl />
-          </ProtectedRoute>
-        }
+        />
+        <Route
+          path="/veiculos"
+          element={
+            <ProtectedRoute adminOnly>
+              <Vehicles />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/portaria"
+          element={
+            <ProtectedRoute>
+              <AccessControl />
+            </ProtectedRoute>
+          }
       />
       <Route
         path="/encomendas"

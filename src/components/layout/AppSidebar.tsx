@@ -6,7 +6,8 @@ import {
   Users,
   LogOut,
   ChevronLeft,
-  Menu
+  Menu,
+  Car
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,7 @@ import { useState } from 'react';
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/', adminOnly: false },
   { icon: Building2, label: 'Unidades', path: '/unidades', adminOnly: true },
+  { icon: Car, label: 'Veículos', path: '/veiculos', adminOnly: true },
   { icon: ShieldCheck, label: 'Portaria', path: '/portaria', adminOnly: false },
   { icon: Package, label: 'Encomendas', path: '/encomendas', adminOnly: false },
   { icon: Users, label: 'Usuários', path: '/usuarios', adminOnly: true },
