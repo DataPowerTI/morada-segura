@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Building2, Package, ShieldCheck, TrendingUp } from 'lucide-react';
+import { Building2, Package, ShieldCheck, TrendingUp, Car } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatsCard } from '@/components/ui/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { VehiclePlateSearch } from '@/components/VehiclePlateSearch';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface DashboardStats {
   totalUnits: number;
+  totalVehicles: number;
   pendingParcels: number;
   activeProviders: number;
 }
@@ -37,6 +39,7 @@ interface ActiveProvider {
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalUnits: 0,
+    totalVehicles: 0,
     pendingParcels: 0,
     activeProviders: 0,
   });
@@ -50,6 +53,11 @@ export default function Dashboard() {
         // Fetch units count
         const { count: unitsCount } = await supabase
           .from('units')
+          .select('*', { count: 'exact', head: true });
+
+        // Fetch vehicles count
+        const { count: vehiclesCount } = await supabase
+          .from('vehicles')
           .select('*', { count: 'exact', head: true });
 
         // Fetch pending parcels count
@@ -66,6 +74,7 @@ export default function Dashboard() {
 
         setStats({
           totalUnits: unitsCount || 0,
+          totalVehicles: vehiclesCount || 0,
           pendingParcels: parcelsCount || 0,
           activeProviders: providersCount || 0,
         });
@@ -133,6 +142,13 @@ export default function Dashboard() {
           description="Apartamentos cadastrados"
         />
         <StatsCard
+          title="Veículos Cadastrados"
+          value={stats.totalVehicles}
+          icon={Car}
+          variant="default"
+          description="Total de veículos"
+        />
+        <StatsCard
           title="Encomendas Pendentes"
           value={stats.pendingParcels}
           icon={Package}
@@ -146,13 +162,11 @@ export default function Dashboard() {
           variant="default"
           description="Atualmente no prédio"
         />
-        <StatsCard
-          title="Taxa de Entrega"
-          value="94%"
-          icon={TrendingUp}
-          variant="success"
-          trend={{ value: 12, isPositive: true }}
-        />
+      </div>
+
+      {/* Vehicle Search */}
+      <div className="mt-6">
+        <VehiclePlateSearch />
       </div>
 
       {/* Activity Grid */}
