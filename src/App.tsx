@@ -11,6 +11,7 @@ import Vehicles from "./pages/Vehicles";
 import AccessControl from "./pages/AccessControl";
 import Parcels from "./pages/Parcels";
 import Users from "./pages/Users";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -96,6 +97,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute adminOnly>
             <Users />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/configuracoes"
+        element={
+          <ProtectedRoute>
+            <Settings />
           </ProtectedRoute>
         }
       />

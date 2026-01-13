@@ -1,4 +1,4 @@
-import { LayoutDashboard, Building2, ShieldCheck, Package, Users, Car } from 'lucide-react';
+import { LayoutDashboard, Building2, ShieldCheck, Package, Users, Car, Settings } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,6 +10,7 @@ const menuItems = [
   { icon: ShieldCheck, label: 'Portaria', path: '/portaria', adminOnly: false },
   { icon: Package, label: 'Encomendas', path: '/encomendas', adminOnly: false },
   { icon: Users, label: 'Usuários', path: '/usuarios', adminOnly: true },
+  { icon: Settings, label: 'Config', path: '/configuracoes', adminOnly: false },
 ];
 
 export function BottomNav() {
