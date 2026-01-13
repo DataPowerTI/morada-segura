@@ -15,6 +15,8 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/', adminOnly: false },
@@ -31,7 +33,22 @@ export function AppSidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
+  const { data: condominium } = useQuery({
+    queryKey: ['condominium'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('condominium')
+        .select('name')
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const filteredItems = menuItems.filter(item => !item.adminOnly || isAdmin);
+
+  const displayName = condominium?.name || 'CondoControl';
 
   return (
     <aside 
@@ -48,7 +65,7 @@ export function AppSidebar() {
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <Building2 className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-sidebar-foreground">CondoControl</span>
+            <span className="font-bold text-sidebar-foreground truncate max-w-[140px]">{displayName}</span>
           </div>
         )}
         <Button
