@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Edit, Trash2, Phone } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Phone, Car, Eye } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,6 +16,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import {
   Table,
   TableBody,
@@ -34,7 +40,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { UnitVehicles } from '@/components/UnitVehicles';
 
 const unitSchema = z.object({
   unit_number: z.string().min(1, 'Número da unidade é obrigatório'),
@@ -61,6 +70,8 @@ export default function Units() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
   const [deleteUnit, setDeleteUnit] = useState<Unit | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
+  const [vehicleCounts, setVehicleCounts] = useState<Record<string, number>>({});
   const { toast } = useToast();
 
   const form = useForm<UnitFormData>({
@@ -76,6 +87,12 @@ export default function Units() {
   useEffect(() => {
     fetchUnits();
   }, []);
+
+  useEffect(() => {
+    if (units.length > 0) {
+      fetchVehicleCounts();
+    }
+  }, [units]);
 
   useEffect(() => {
     const filtered = units.filter(
@@ -106,6 +123,24 @@ export default function Units() {
       });
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchVehicleCounts() {
+    try {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('unit_id');
+
+      if (error) throw error;
+
+      const counts: Record<string, number> = {};
+      (data || []).forEach((v) => {
+        counts[v.unit_id] = (counts[v.unit_id] || 0) + 1;
+      });
+      setVehicleCounts(counts);
+    } catch (error) {
+      console.error('Error fetching vehicle counts:', error);
     }
   }
 
@@ -288,25 +323,26 @@ export default function Units() {
               <TableHead>Bloco</TableHead>
               <TableHead>Morador</TableHead>
               <TableHead>Telefone</TableHead>
+              <TableHead>Veículos</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8">
+                <TableCell colSpan={6} className="text-center py-8">
                   Carregando...
                 </TableCell>
               </TableRow>
             ) : filteredUnits.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   Nenhuma unidade encontrada
                 </TableCell>
               </TableRow>
             ) : (
               filteredUnits.map((unit) => (
-                <TableRow key={unit.id} className="data-table-row">
+                <TableRow key={unit.id} className="data-table-row cursor-pointer hover:bg-muted/50" onClick={() => setSelectedUnit(unit)}>
                   <TableCell className="font-medium">{unit.unit_number}</TableCell>
                   <TableCell>{unit.block || '-'}</TableCell>
                   <TableCell>{unit.resident_name}</TableCell>
@@ -315,6 +351,7 @@ export default function Units() {
                       <a
                         href={`tel:${unit.phone_number}`}
                         className="flex items-center gap-1 text-primary hover:underline"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <Phone className="h-3 w-3" />
                         {unit.phone_number}
@@ -323,19 +360,42 @@ export default function Units() {
                       '-'
                     )}
                   </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="gap-1">
+                      <Car className="h-3 w-3" />
+                      {vehicleCounts[unit.id] || 0}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => openEditDialog(unit)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedUnit(unit);
+                        }}
+                        title="Ver detalhes"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditDialog(unit);
+                        }}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setDeleteUnit(unit)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteUnit(unit);
+                        }}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -347,6 +407,57 @@ export default function Units() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Unit Details Sheet */}
+      <Sheet open={!!selectedUnit} onOpenChange={() => setSelectedUnit(null)}>
+        <SheetContent className="sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              Unidade {selectedUnit?.unit_number}
+              {selectedUnit?.block && (
+                <Badge variant="outline">Bloco {selectedUnit.block}</Badge>
+              )}
+            </SheetTitle>
+          </SheetHeader>
+          
+          {selectedUnit && (
+            <div className="mt-6 space-y-6">
+              {/* Unit Info */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-muted-foreground">Informações</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Morador</span>
+                    <span className="font-medium">{selectedUnit.resident_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Telefone</span>
+                    {selectedUnit.phone_number ? (
+                      <a
+                        href={`tel:${selectedUnit.phone_number}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {selectedUnit.phone_number}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Vehicles Section */}
+              <UnitVehicles
+                unitId={selectedUnit.id}
+                unitNumber={selectedUnit.unit_number}
+                block={selectedUnit.block}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteUnit} onOpenChange={() => setDeleteUnit(null)}>
