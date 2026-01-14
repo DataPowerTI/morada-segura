@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Plus, Camera, LogIn, LogOut, Search, User } from 'lucide-react';
+import { Plus, Camera, LogIn, LogOut, Search, User, Building } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,6 +17,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -27,9 +34,17 @@ const providerSchema = z.object({
   name: z.string().min(2, 'Nome é obrigatório'),
   document: z.string().optional(),
   company: z.string().optional(),
+  unit_id: z.string().optional(),
 });
 
 type ProviderFormData = z.infer<typeof providerSchema>;
+
+interface Unit {
+  id: string;
+  unit_number: string;
+  block: string | null;
+  resident_name: string;
+}
 
 interface ServiceProvider {
   id: string;
@@ -39,10 +54,13 @@ interface ServiceProvider {
   photo_url: string | null;
   entry_time: string;
   exit_time: string | null;
+  unit_id: string | null;
+  units?: Unit | null;
 }
 
 export default function AccessControl() {
   const [providers, setProviders] = useState<ServiceProvider[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
@@ -60,11 +78,13 @@ export default function AccessControl() {
       name: '',
       document: '',
       company: '',
+      unit_id: '',
     },
   });
 
   useEffect(() => {
     fetchProviders();
+    fetchUnits();
   }, []);
 
   useEffect(() => {
@@ -79,7 +99,7 @@ export default function AccessControl() {
     try {
       const { data, error } = await supabase
         .from('service_providers')
-        .select('*')
+        .select('*, units(id, unit_number, block, resident_name)')
         .order('entry_time', { ascending: false });
 
       if (error) throw error;
@@ -91,17 +111,36 @@ export default function AccessControl() {
     }
   }
 
+  async function fetchUnits() {
+    try {
+      const { data, error } = await supabase
+        .from('units')
+        .select('id, unit_number, block, resident_name')
+        .order('unit_number');
+
+      if (error) throw error;
+      setUnits(data || []);
+    } catch (error) {
+      console.error('Error fetching units:', error);
+    }
+  }
+
   const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: 640, height: 480 },
       });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-        setCameraActive(true);
-      }
+      streamRef.current = stream;
+      setCameraActive(true);
+      
+      // Wait for next render to set video source
+      setTimeout(() => {
+        if (videoRef.current && streamRef.current) {
+          videoRef.current.srcObject = streamRef.current;
+        }
+      }, 100);
     } catch (error) {
+      console.error('Camera error:', error);
       toast({
         variant: 'destructive',
         title: 'Erro',
@@ -167,6 +206,7 @@ export default function AccessControl() {
         document: data.document || null,
         company: data.company || null,
         photo_url: photoUrl,
+        unit_id: data.unit_id || null,
         created_by: user?.id,
       });
 
@@ -266,7 +306,12 @@ export default function AccessControl() {
                         ref={videoRef}
                         autoPlay
                         playsInline
+                        muted
                         className="w-full h-full object-cover"
+                        onLoadedMetadata={(e) => {
+                          const video = e.currentTarget;
+                          video.play().catch(console.error);
+                        }}
                       />
                       <Button
                         type="button"
@@ -321,6 +366,25 @@ export default function AccessControl() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="unit_id">Unidade de Atendimento</Label>
+                <Select
+                  value={form.watch('unit_id') || ''}
+                  onValueChange={(value) => form.setValue('unit_id', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a unidade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {units.map((unit) => (
+                      <SelectItem key={unit.id} value={unit.id}>
+                        {unit.block ? `${unit.block} - ` : ''}Unidade {unit.unit_number} ({unit.resident_name})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancelar
@@ -369,6 +433,12 @@ export default function AccessControl() {
                     <p className="font-medium truncate">{provider.name}</p>
                     {provider.company && (
                       <p className="text-sm text-muted-foreground truncate">{provider.company}</p>
+                    )}
+                    {provider.units && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Building className="h-3 w-3" />
+                        {provider.units.block ? `${provider.units.block} - ` : ''}Unidade {provider.units.unit_number}
+                      </p>
                     )}
                     <p className="text-xs text-muted-foreground">
                       Entrada: {formatDateTime(provider.entry_time)}
@@ -425,6 +495,12 @@ export default function AccessControl() {
                     <p className="font-medium">{provider.name}</p>
                     {provider.company && (
                       <p className="text-sm text-muted-foreground">{provider.company}</p>
+                    )}
+                    {provider.units && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Building className="h-3 w-3" />
+                        {provider.units.block ? `${provider.units.block} - ` : ''}Unidade {provider.units.unit_number}
+                      </p>
                     )}
                   </div>
                   <div className="text-right text-sm">
