@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Units from "./pages/Units";
 import Vehicles from "./pages/Vehicles";
 import AccessControl from "./pages/AccessControl";
+import RentalGuests from "./pages/RentalGuests";
 import Parcels from "./pages/Parcels";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
@@ -83,6 +84,14 @@ function AppRoutes() {
               <AccessControl />
             </ProtectedRoute>
           }
+      />
+      <Route
+        path="/hospedes"
+        element={
+          <ProtectedRoute>
+            <RentalGuests />
+          </ProtectedRoute>
+        }
       />
       <Route
         path="/encomendas"
