@@ -1,4 +1,4 @@
-import { LayoutDashboard, Building2, ShieldCheck, Package, Users, Car, Settings } from 'lucide-react';
+import { LayoutDashboard, Building2, ShieldCheck, Package, Users, Car, Settings, Home } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,6 +8,7 @@ const menuItems = [
   { icon: Building2, label: 'Unidades', path: '/unidades', adminOnly: true },
   { icon: Car, label: 'Veículos', path: '/veiculos', adminOnly: true },
   { icon: ShieldCheck, label: 'Portaria', path: '/portaria', adminOnly: false },
+  { icon: Home, label: 'Hóspedes', path: '/hospedes', adminOnly: false },
   { icon: Package, label: 'Encomendas', path: '/encomendas', adminOnly: false },
   { icon: Users, label: 'Usuários', path: '/usuarios', adminOnly: true },
   { icon: Settings, label: 'Config', path: '/configuracoes', adminOnly: false },

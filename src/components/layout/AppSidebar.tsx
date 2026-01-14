@@ -8,7 +8,8 @@ import {
   ChevronLeft,
   Menu,
   Car,
-  Settings
+  Settings,
+  Home
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,7 @@ const menuItems = [
   { icon: Building2, label: 'Unidades', path: '/unidades', adminOnly: true },
   { icon: Car, label: 'Veículos', path: '/veiculos', adminOnly: true },
   { icon: ShieldCheck, label: 'Portaria', path: '/portaria', adminOnly: false },
+  { icon: Home, label: 'Hóspedes', path: '/hospedes', adminOnly: false },
   { icon: Package, label: 'Encomendas', path: '/encomendas', adminOnly: false },
   { icon: Users, label: 'Usuários', path: '/usuarios', adminOnly: true },
   { icon: Settings, label: 'Configurações', path: '/configuracoes', adminOnly: false },

@@ -115,6 +115,53 @@ export type Database = {
         }
         Relationships: []
       }
+      rental_guests: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          document: string | null
+          entry_time: string
+          exit_time: string | null
+          id: string
+          name: string
+          photo_url: string | null
+          unit_id: string | null
+          vehicle_plate: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          document?: string | null
+          entry_time?: string
+          exit_time?: string | null
+          id?: string
+          name: string
+          photo_url?: string | null
+          unit_id?: string | null
+          vehicle_plate?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          document?: string | null
+          entry_time?: string
+          exit_time?: string | null
+          id?: string
+          name?: string
+          photo_url?: string | null
+          unit_id?: string | null
+          vehicle_plate?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rental_guests_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_providers: {
         Row: {
           company: string | null
