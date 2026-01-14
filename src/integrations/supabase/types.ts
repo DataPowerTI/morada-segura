@@ -173,6 +173,7 @@ export type Database = {
           id: string
           name: string
           photo_url: string | null
+          unit_id: string | null
         }
         Insert: {
           company?: string | null
@@ -184,6 +185,7 @@ export type Database = {
           id?: string
           name: string
           photo_url?: string | null
+          unit_id?: string | null
         }
         Update: {
           company?: string | null
@@ -195,8 +197,17 @@ export type Database = {
           id?: string
           name?: string
           photo_url?: string | null
+          unit_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "service_providers_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       units: {
         Row: {
