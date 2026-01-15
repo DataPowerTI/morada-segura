@@ -152,11 +152,15 @@ export default function Parcels() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: 640, height: 480 },
       });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-        setCameraActive(true);
-      }
+      streamRef.current = stream;
+      setCameraActive(true);
+      
+      // Use setTimeout to ensure video element is rendered
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -420,7 +424,12 @@ export default function Parcels() {
                         ref={videoRef}
                         autoPlay
                         playsInline
+                        muted
                         className="w-full h-full object-cover"
+                        onLoadedMetadata={(e) => {
+                          const video = e.currentTarget;
+                          video.play().catch(console.error);
+                        }}
                       />
                       <Button
                         type="button"
