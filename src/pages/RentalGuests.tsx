@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import { useCamera } from '@/hooks/use-camera';
 import { Plus, Camera, LogIn, LogOut, User, Car, Home } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -66,14 +67,20 @@ export default function RentalGuests() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [cameraActive, setCameraActive] = useState(false);
-  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { 
+    videoRef, 
+    canvasRef, 
+    cameraActive, 
+    capturedPhoto, 
+    startCamera, 
+    stopCamera, 
+    capturePhoto, 
+    resetPhoto,
+    setCapturedPhoto 
+  } = useCamera({ preferredFacingMode: 'environment' });
 
   const form = useForm<GuestFormData>({
     resolver: zodResolver(guestSchema),
@@ -88,14 +95,6 @@ export default function RentalGuests() {
   useEffect(() => {
     fetchGuests();
     fetchUnits();
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
-    };
   }, []);
 
   async function fetchGuests() {
@@ -131,52 +130,20 @@ export default function RentalGuests() {
     }
   }
 
-  const startCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: 640, height: 480 },
-      });
-      streamRef.current = stream;
-      setCameraActive(true);
-      
-      // Use setTimeout to ensure video element is rendered
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      }, 100);
-    } catch (error) {
+  const handleStartCamera = async () => {
+    const success = await startCamera();
+    if (!success) {
       toast({
         variant: 'destructive',
         title: 'Erro',
-        description: 'Não foi possível acessar a câmera.',
+        description: 'Não foi possível acessar a câmera. Verifique as permissões.',
       });
     }
-  }, [toast]);
+  };
 
-  const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setCameraActive(false);
-  }, []);
-
-  const capturePhoto = useCallback(() => {
-    if (videoRef.current && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const video = videoRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        setCapturedPhoto(dataUrl);
-        stopCamera();
-      }
-    }
-  }, [stopCamera]);
+  const handleCapturePhoto = () => {
+    capturePhoto();
+  };
 
   async function uploadPhoto(dataUrl: string): Promise<string | null> {
     try {
@@ -304,7 +271,7 @@ export default function RentalGuests() {
                 <div className="camera-preview">
                   {!cameraActive && !capturedPhoto && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <Button type="button" variant="secondary" onClick={startCamera}>
+                      <Button type="button" variant="secondary" onClick={handleStartCamera}>
                         <Camera className="h-4 w-4 mr-2" />
                         Abrir Câmera
                       </Button>
@@ -326,7 +293,7 @@ export default function RentalGuests() {
                       <Button
                         type="button"
                         className="absolute bottom-4 left-1/2 -translate-x-1/2"
-                        onClick={capturePhoto}
+                        onClick={handleCapturePhoto}
                       >
                         <Camera className="h-4 w-4 mr-2" />
                         Capturar
@@ -345,8 +312,8 @@ export default function RentalGuests() {
                         variant="secondary"
                         className="absolute bottom-4 left-1/2 -translate-x-1/2"
                         onClick={() => {
-                          setCapturedPhoto(null);
-                          startCamera();
+                          resetPhoto();
+                          handleStartCamera();
                         }}
                       >
                         Nova Foto
