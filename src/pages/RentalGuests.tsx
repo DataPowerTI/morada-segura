@@ -31,9 +31,9 @@ import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 
 const guestSchema = z.object({
-  name: z.string().min(2, 'Nome é obrigatório'),
-  document: z.string().optional(),
-  vehicle_plate: z.string().optional(),
+  name: z.string().min(2, 'Nome é obrigatório').max(200, 'Nome muito longo'),
+  document: z.string().max(20, 'Documento muito longo').optional(),
+  vehicle_plate: z.string().max(10, 'Placa muito longa').optional(),
   unit_id: z.string().min(1, 'Unidade é obrigatória'),
 });
 
@@ -149,6 +149,17 @@ export default function RentalGuests() {
     try {
       const response = await fetch(dataUrl);
       const blob = await response.blob();
+      
+      // Validate file size (max 5MB)
+      if (blob.size > 5 * 1024 * 1024) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: 'A foto é muito grande. Máximo permitido: 5MB.',
+        });
+        return null;
+      }
+      
       const fileName = `guests/${Date.now()}.jpg`;
 
       const { error } = await supabase.storage.from('photos').upload(fileName, blob, {
@@ -157,8 +168,13 @@ export default function RentalGuests() {
 
       if (error) throw error;
 
-      const { data } = supabase.storage.from('photos').getPublicUrl(fileName);
-      return data.publicUrl;
+      // Use signed URL for private bucket (1 year expiry for stored URLs)
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from('photos')
+        .createSignedUrl(fileName, 60 * 60 * 24 * 365); // 1 year
+      
+      if (signedError) throw signedError;
+      return signedData.signedUrl;
     } catch (error) {
       console.error('Error uploading photo:', error);
       return null;

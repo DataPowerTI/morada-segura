@@ -48,7 +48,7 @@ import { cn } from '@/lib/utils';
 
 const parcelSchema = z.object({
   unit_id: z.string().min(1, 'Selecione uma unidade'),
-  description: z.string().min(2, 'Descrição é obrigatória'),
+  description: z.string().min(2, 'Descrição é obrigatória').max(500, 'Descrição muito longa'),
 });
 
 type ParcelFormData = z.infer<typeof parcelSchema>;
@@ -165,6 +165,17 @@ export default function Parcels() {
     try {
       const response = await fetch(dataUrl);
       const blob = await response.blob();
+      
+      // Validate file size (max 5MB)
+      if (blob.size > 5 * 1024 * 1024) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: 'A foto é muito grande. Máximo permitido: 5MB.',
+        });
+        return null;
+      }
+      
       const fileName = `parcels/${Date.now()}.jpg`;
 
       const { error } = await supabase.storage.from('photos').upload(fileName, blob, {
@@ -173,8 +184,13 @@ export default function Parcels() {
 
       if (error) throw error;
 
-      const { data } = supabase.storage.from('photos').getPublicUrl(fileName);
-      return data.publicUrl;
+      // Use signed URL for private bucket (1 year expiry for stored URLs)
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from('photos')
+        .createSignedUrl(fileName, 60 * 60 * 24 * 365); // 1 year
+      
+      if (signedError) throw signedError;
+      return signedData.signedUrl;
     } catch (error) {
       console.error('Error uploading photo:', error);
       return null;
