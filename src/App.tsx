@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Auth from "./pages/Auth";
+import ChangePassword from "./pages/ChangePassword";
 import Dashboard from "./pages/Dashboard";
 import Units from "./pages/Units";
 import Vehicles from "./pages/Vehicles";
@@ -18,7 +19,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, mustChangePassword } = useAuth();
 
   if (loading) {
     return (
@@ -32,6 +33,10 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
     return <Navigate to="/auth" replace />;
   }
 
+  if (mustChangePassword) {
+    return <Navigate to="/alterar-senha" replace />;
+  }
+
   if (adminOnly && !isAdmin) {
     return <Navigate to="/" replace />;
   }
@@ -40,7 +45,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
 }
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading, mustChangePassword } = useAuth();
 
   if (loading) {
     return (
@@ -53,6 +58,14 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+      <Route 
+        path="/alterar-senha" 
+        element={
+          !user ? <Navigate to="/auth" replace /> : 
+          !mustChangePassword ? <Navigate to="/" replace /> : 
+          <ChangePassword />
+        } 
+      />
       <Route
         path="/"
         element={
