@@ -9,10 +9,12 @@ interface AuthContextType {
   session: Session | null;
   userRole: UserRole;
   loading: boolean;
+  mustChangePassword: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  refreshMustChangePassword: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -34,9 +37,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           setTimeout(() => {
             fetchUserRole(session.user.id);
+            checkMustChangePassword(session.user.id);
           }, 0);
         } else {
           setUserRole(null);
+          setMustChangePassword(false);
         }
       }
     );
@@ -47,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchUserRole(session.user.id);
+        checkMustChangePassword(session.user.id);
       } else {
         setLoading(false);
       }
@@ -74,6 +80,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUserRole('operator');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkMustChangePassword = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('must_change_password')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking must_change_password:', error);
+        setMustChangePassword(false);
+      } else {
+        setMustChangePassword(data?.must_change_password ?? false);
+      }
+    } catch (error) {
+      console.error('Error checking must_change_password:', error);
+      setMustChangePassword(false);
+    }
+  };
+
+  const refreshMustChangePassword = async () => {
+    if (user) {
+      await checkMustChangePassword(user.id);
     }
   };
 
@@ -106,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setUserRole(null);
+    setMustChangePassword(false);
   };
 
   const value = {
@@ -113,10 +146,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     userRole,
     loading,
+    mustChangePassword,
     signIn,
     signUp,
     signOut,
     isAdmin: userRole === 'admin',
+    refreshMustChangePassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
