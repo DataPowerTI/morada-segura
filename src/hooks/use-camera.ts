@@ -1,7 +1,9 @@
 import { useRef, useState, useCallback } from 'react';
 
+export type FacingMode = 'user' | 'environment';
+
 interface UseCameraOptions {
-  preferredFacingMode?: 'user' | 'environment';
+  preferredFacingMode?: FacingMode;
 }
 
 export function useCamera(options: UseCameraOptions = {}) {
@@ -12,23 +14,28 @@ export function useCamera(options: UseCameraOptions = {}) {
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<FacingMode>(preferredFacingMode);
 
-  const startCamera = useCallback(async (): Promise<boolean> => {
+  const startCameraWithMode = useCallback(async (mode: FacingMode): Promise<boolean> => {
     try {
-      // First, try with preferred facing mode (environment = back camera on mobile)
+      // Stop any existing stream first
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      
       let stream: MediaStream | null = null;
       
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: { 
-            facingMode: { ideal: preferredFacingMode },
+            facingMode: { ideal: mode },
             width: { ideal: 640 },
             height: { ideal: 480 }
           },
         });
       } catch (firstError) {
         console.log('Preferred camera not available, trying fallback...', firstError);
-        // Fallback: try without facingMode constraint (works better on desktop)
         try {
           stream = await navigator.mediaDevices.getUserMedia({
             video: {
@@ -38,7 +45,6 @@ export function useCamera(options: UseCameraOptions = {}) {
           });
         } catch (secondError) {
           console.log('Fallback camera failed, trying basic constraints...', secondError);
-          // Last resort: just request any video
           stream = await navigator.mediaDevices.getUserMedia({
             video: true,
           });
@@ -50,9 +56,9 @@ export function useCamera(options: UseCameraOptions = {}) {
       }
       
       streamRef.current = stream;
+      setFacingMode(mode);
       setCameraActive(true);
       
-      // Wait for next render cycle to set video source
       setTimeout(() => {
         if (videoRef.current && streamRef.current) {
           videoRef.current.srcObject = streamRef.current;
@@ -64,7 +70,16 @@ export function useCamera(options: UseCameraOptions = {}) {
       console.error('Camera error:', error);
       return false;
     }
-  }, [preferredFacingMode]);
+  }, []);
+
+  const startCamera = useCallback(async (): Promise<boolean> => {
+    return startCameraWithMode(facingMode);
+  }, [facingMode, startCameraWithMode]);
+
+  const switchCamera = useCallback(async (): Promise<boolean> => {
+    const newMode: FacingMode = facingMode === 'environment' ? 'user' : 'environment';
+    return startCameraWithMode(newMode);
+  }, [facingMode, startCameraWithMode]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -106,11 +121,13 @@ export function useCamera(options: UseCameraOptions = {}) {
     canvasRef,
     cameraActive,
     capturedPhoto,
+    facingMode,
     startCamera,
     stopCamera,
     capturePhoto,
     resetPhoto,
     cleanup,
     setCapturedPhoto,
+    switchCamera,
   };
 }

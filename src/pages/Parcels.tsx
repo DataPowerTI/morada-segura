@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useCamera } from '@/hooks/use-camera';
-import { Plus, Camera, Package, Check, Search, MessageCircle } from 'lucide-react';
+import { Plus, Package, Check, Search, MessageCircle } from 'lucide-react';
 import { z } from 'zod';
+import { CameraCapture } from '@/components/CameraCapture';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
@@ -87,11 +88,13 @@ export default function Parcels() {
     canvasRef, 
     cameraActive, 
     capturedPhoto, 
+    facingMode,
     startCamera, 
     stopCamera, 
     capturePhoto, 
     resetPhoto,
-    setCapturedPhoto 
+    setCapturedPhoto,
+    switchCamera,
   } = useCamera({ preferredFacingMode: 'environment' });
 
   const form = useForm<ParcelFormData>({
@@ -390,63 +393,17 @@ export default function Parcels() {
               </div>
 
               {/* Camera/Photo Section */}
-              <div className="space-y-2">
-                <Label>Foto da Encomenda</Label>
-                <div className="camera-preview">
-                  {!cameraActive && !capturedPhoto && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Button type="button" variant="secondary" onClick={handleStartCamera}>
-                        <Camera className="h-4 w-4 mr-2" />
-                        Abrir Câmera
-                      </Button>
-                    </div>
-                  )}
-                  {cameraActive && (
-                    <>
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        className="w-full h-full object-cover"
-                        onLoadedMetadata={(e) => {
-                          const video = e.currentTarget;
-                          video.play().catch(console.error);
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        className="absolute bottom-4 left-1/2 -translate-x-1/2"
-                        onClick={handleCapturePhoto}
-                      >
-                        <Camera className="h-4 w-4 mr-2" />
-                        Capturar
-                      </Button>
-                    </>
-                  )}
-                  {capturedPhoto && (
-                    <>
-                      <img
-                        src={capturedPhoto}
-                        alt="Foto capturada"
-                        className="w-full h-full object-cover"
-                      />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="absolute bottom-4 left-1/2 -translate-x-1/2"
-                        onClick={() => {
-                          resetPhoto();
-                          handleStartCamera();
-                        }}
-                      >
-                        Nova Foto
-                      </Button>
-                    </>
-                  )}
-                </div>
-                <canvas ref={canvasRef} className="hidden" />
-              </div>
+              <CameraCapture
+                videoRef={videoRef}
+                canvasRef={canvasRef}
+                cameraActive={cameraActive}
+                capturedPhoto={capturedPhoto}
+                facingMode={facingMode}
+                onStartCamera={handleStartCamera}
+                onCapturePhoto={handleCapturePhoto}
+                onSwitchCamera={switchCamera}
+                onResetPhoto={resetPhoto}
+              />
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
