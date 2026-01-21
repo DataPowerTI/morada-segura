@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 
 const changePasswordSchema = z.object({
-  newPassword: z.string().min(6, 'A nova senha deve ter no mínimo 6 caracteres'),
+  newPassword: z.string().min(8, 'A nova senha deve ter no mínimo 8 caracteres'),
   confirmPassword: z.string(),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: 'As senhas não coincidem',
