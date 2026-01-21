@@ -37,10 +37,10 @@ export default function Settings() {
         .from("condominium")
         .select("*")
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      return data as Condominium;
+      return (data as Condominium) ?? null;
     },
   });
 
@@ -57,17 +57,20 @@ export default function Settings() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      if (!condominium?.id) throw new Error("Condomínio não encontrado");
-      
-      const { error } = await supabase
-        .from("condominium")
-        .update({
-          name: data.name,
-          cnpj: data.cnpj || null,
-          address: data.address || null,
-          phone: data.phone || null,
-        })
-        .eq("id", condominium.id);
+      const payload = {
+        name: data.name,
+        cnpj: data.cnpj || null,
+        address: data.address || null,
+        phone: data.phone || null,
+      };
+
+      // Se ainda não existir registro de condomínio, cria o primeiro.
+      const { error } = condominium?.id
+        ? await supabase
+            .from("condominium")
+            .update(payload)
+            .eq("id", condominium.id)
+        : await supabase.from("condominium").insert(payload);
 
       if (error) throw error;
     },
