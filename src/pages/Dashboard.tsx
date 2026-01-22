@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Building2, Package, ShieldCheck, TrendingUp, Car } from 'lucide-react';
+import { Building2, Package, ShieldCheck, Car, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
@@ -15,6 +15,7 @@ interface DashboardStats {
   totalVehicles: number;
   pendingParcels: number;
   activeProviders: number;
+  activeGuests: number;
 }
 
 interface RecentParcel {
@@ -42,6 +43,7 @@ export default function Dashboard() {
     totalVehicles: 0,
     pendingParcels: 0,
     activeProviders: 0,
+    activeGuests: 0,
   });
   const [recentParcels, setRecentParcels] = useState<RecentParcel[]>([]);
   const [activeProviders, setActiveProviders] = useState<ActiveProvider[]>([]);
@@ -72,11 +74,18 @@ export default function Dashboard() {
           .select('*', { count: 'exact', head: true })
           .is('exit_time', null);
 
+        // Fetch active rental guests count (no exit_time)
+        const { count: guestsCount } = await supabase
+          .from('rental_guests')
+          .select('*', { count: 'exact', head: true })
+          .is('exit_time', null);
+
         setStats({
           totalUnits: unitsCount || 0,
           totalVehicles: vehiclesCount || 0,
           pendingParcels: parcelsCount || 0,
           activeProviders: providersCount || 0,
+          activeGuests: guestsCount || 0,
         });
 
         // Fetch recent parcels
@@ -133,7 +142,7 @@ export default function Dashboard() {
       />
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 stagger-children">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 stagger-children">
         <StatsCard
           title="Total de Unidades"
           value={stats.totalUnits}
@@ -154,6 +163,13 @@ export default function Dashboard() {
           icon={Package}
           variant={stats.pendingParcels > 0 ? 'warning' : 'success'}
           description="Aguardando retirada"
+        />
+        <StatsCard
+          title="Hóspedes no Local"
+          value={stats.activeGuests}
+          icon={Users}
+          variant={stats.activeGuests > 0 ? 'primary' : 'default'}
+          description="Atualmente hospedados"
         />
         <StatsCard
           title="Prestadores no Local"
