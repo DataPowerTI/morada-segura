@@ -53,6 +53,7 @@ export type Database = {
           description: string
           id: string
           photo_url: string | null
+          protocol_number: string | null
           status: Database["public"]["Enums"]["parcel_status"]
           unit_id: string
           updated_at: string
@@ -65,6 +66,7 @@ export type Database = {
           description: string
           id?: string
           photo_url?: string | null
+          protocol_number?: string | null
           status?: Database["public"]["Enums"]["parcel_status"]
           unit_id: string
           updated_at?: string
@@ -77,6 +79,7 @@ export type Database = {
           description?: string
           id?: string
           photo_url?: string | null
+          protocol_number?: string | null
           status?: Database["public"]["Enums"]["parcel_status"]
           unit_id?: string
           updated_at?: string
