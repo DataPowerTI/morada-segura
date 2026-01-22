@@ -20,6 +20,7 @@ interface DashboardStats {
 
 interface RecentParcel {
   id: string;
+  protocol_number: string | null;
   description: string;
   status: 'pending' | 'collected';
   arrived_at: string;
@@ -93,6 +94,7 @@ export default function Dashboard() {
           .from('parcels')
           .select(`
             id,
+            protocol_number,
             description,
             status,
             arrived_at,
@@ -208,6 +210,11 @@ export default function Dashboard() {
                     className="flex items-center justify-between p-3 rounded-lg bg-muted/50 data-table-row"
                   >
                     <div className="space-y-1">
+                      {parcel.protocol_number && (
+                        <p className="text-xs font-mono text-primary">
+                          #{parcel.protocol_number}
+                        </p>
+                      )}
                       <p className="font-medium text-sm">{parcel.description}</p>
                       <p className="text-xs text-muted-foreground">
                         {parcel.unit?.block ? `Bloco ${parcel.unit.block} - ` : ''}

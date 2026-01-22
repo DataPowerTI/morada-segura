@@ -64,6 +64,7 @@ interface Unit {
 
 interface Parcel {
   id: string;
+  protocol_number: string | null;
   description: string;
   photo_url: string | null;
   status: 'pending' | 'collected';
@@ -116,6 +117,7 @@ export default function Parcels() {
         .from('parcels')
         .select(`
           id,
+          protocol_number,
           description,
           photo_url,
           status,
@@ -296,7 +298,8 @@ export default function Parcels() {
     const matchesSearch =
       parcel.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       parcel.unit.resident_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      parcel.unit.unit_number.toLowerCase().includes(searchTerm.toLowerCase());
+      parcel.unit.unit_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (parcel.protocol_number?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
     return matchesFilter && matchesSearch;
   });
 
@@ -462,6 +465,11 @@ export default function Parcels() {
                 </div>
               )}
               <CardContent className={cn("p-4", !parcel.photo_url && "pt-4")}>
+                {parcel.protocol_number && (
+                  <p className="text-xs font-mono text-primary mb-2">
+                    Protocolo: {parcel.protocol_number}
+                  </p>
+                )}
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div>
                     <p className="font-medium">{parcel.description}</p>
