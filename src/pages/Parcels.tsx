@@ -277,9 +277,12 @@ export default function Parcels() {
       return;
     }
 
+    const protocolText = parcel.protocol_number ? ` (Protocolo: ${parcel.protocol_number})` : '';
+    const unitText = parcel.unit.block ? `Bloco ${parcel.unit.block} - ` : '';
+
     const message = type === 'arrival'
-      ? `Olá ${parcel.unit.resident_name}, uma nova encomenda chegou para a unidade ${parcel.unit.block ? `Bloco ${parcel.unit.block} - ` : ''}${parcel.unit.unit_number}. Descrição: ${parcel.description}.`
-      : `Olá ${parcel.unit.resident_name}, sua encomenda (${parcel.description}) foi retirada com sucesso.`;
+      ? `Olá ${parcel.unit.resident_name}, uma nova encomenda chegou para a unidade ${unitText}${parcel.unit.unit_number}${protocolText}. Descrição: ${parcel.description}. Por favor, retire na portaria.`
+      : `Olá ${parcel.unit.resident_name}, sua encomenda${protocolText} (${parcel.description}) foi retirada com sucesso.`;
 
     const whatsappUrl = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
