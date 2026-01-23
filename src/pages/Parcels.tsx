@@ -504,7 +504,7 @@ export default function Parcels() {
                         className="flex-1"
                       >
                         <Check className="h-4 w-4 mr-1" />
-                        Entrega
+                        Entregue
                       </Button>
                       <Button
                         size="sm"
