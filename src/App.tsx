@@ -14,6 +14,7 @@ import RentalGuests from "./pages/RentalGuests";
 import Parcels from "./pages/Parcels";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
+import PartyRoom from "./pages/PartyRoom";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -127,6 +128,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Settings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/salao-festas"
+        element={
+          <ProtectedRoute>
+            <PartyRoom />
           </ProtectedRoute>
         }
       />

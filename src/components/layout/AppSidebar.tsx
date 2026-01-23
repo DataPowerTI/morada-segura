@@ -9,7 +9,8 @@ import {
   Menu,
   Car,
   Settings,
-  Home
+  Home,
+  PartyPopper
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -26,6 +27,7 @@ const menuItems = [
   { icon: ShieldCheck, label: 'Portaria', path: '/portaria', adminOnly: false },
   { icon: Home, label: 'Hóspedes', path: '/hospedes', adminOnly: false },
   { icon: Package, label: 'Encomendas', path: '/encomendas', adminOnly: false },
+  { icon: PartyPopper, label: 'Salão de Festas', path: '/salao-festas', adminOnly: false },
   { icon: Users, label: 'Usuários', path: '/usuarios', adminOnly: true },
   { icon: Settings, label: 'Configurações', path: '/configuracoes', adminOnly: false },
 ];

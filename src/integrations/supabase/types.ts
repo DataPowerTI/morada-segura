@@ -94,6 +94,44 @@ export type Database = {
           },
         ]
       }
+      party_room_bookings: {
+        Row: {
+          booking_date: string
+          created_at: string
+          created_by: string | null
+          id: string
+          period: Database["public"]["Enums"]["booking_period"]
+          unit_id: string
+          updated_at: string
+        }
+        Insert: {
+          booking_date: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          period?: Database["public"]["Enums"]["booking_period"]
+          unit_id: string
+          updated_at?: string
+        }
+        Update: {
+          booking_date?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          period?: Database["public"]["Enums"]["booking_period"]
+          unit_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_room_bookings_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -326,6 +364,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "operator"
+      booking_period: "full_day" | "morning" | "afternoon"
       parcel_status: "pending" | "collected"
     }
     CompositeTypes: {
@@ -455,6 +494,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "operator"],
+      booking_period: ["full_day", "morning", "afternoon"],
       parcel_status: ["pending", "collected"],
     },
   },
