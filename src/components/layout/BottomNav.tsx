@@ -1,4 +1,4 @@
-import { LayoutDashboard, ShieldCheck, Package, Settings, Home, LogOut } from 'lucide-react';
+import { LayoutDashboard, ShieldCheck, Package, Settings, Home, LogOut, PartyPopper } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,7 +8,7 @@ const menuItems = [
   { icon: ShieldCheck, label: 'Portaria', path: '/portaria', adminOnly: false },
   { icon: Home, label: 'Hóspedes', path: '/hospedes', adminOnly: false },
   { icon: Package, label: 'Encomendas', path: '/encomendas', adminOnly: false },
-  { icon: Settings, label: 'Config', path: '/configuracoes', adminOnly: false },
+  { icon: PartyPopper, label: 'Salão', path: '/salao-festas', adminOnly: false },
 ];
 
 export function BottomNav() {
