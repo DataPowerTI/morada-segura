@@ -8,6 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Building2, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,17 +24,23 @@ interface Condominium {
   cnpj: string | null;
   address: string | null;
   phone: string | null;
+  tower_count: number | null;
+  tower_prefix: string | null;
+  tower_naming: string | null;
 }
 
 export default function Settings() {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
-  
+
   const [formData, setFormData] = useState({
     name: "",
     cnpj: "",
     address: "",
     phone: "",
+    tower_count: 1,
+    tower_prefix: "Bloco",
+    tower_naming: "letters",
   });
 
   const { data: condominium, isLoading } = useQuery({
@@ -51,6 +64,9 @@ export default function Settings() {
         cnpj: condominium.cnpj || "",
         address: condominium.address || "",
         phone: condominium.phone || "",
+        tower_count: condominium.tower_count || 1,
+        tower_prefix: condominium.tower_prefix || "Bloco",
+        tower_naming: condominium.tower_naming || "letters",
       });
     }
   }, [condominium]);
@@ -62,9 +78,11 @@ export default function Settings() {
         cnpj: data.cnpj || null,
         address: data.address || null,
         phone: data.phone || null,
+        tower_count: data.tower_count,
+        tower_prefix: data.tower_prefix,
+        tower_naming: data.tower_naming,
       };
 
-      // Se ainda não existir registro de condomínio, cria o primeiro.
       const { error } = condominium?.id
         ? await supabase
             .from("condominium")
@@ -89,8 +107,24 @@ export default function Settings() {
     updateMutation.mutate(formData);
   };
 
-  const handleChange = (field: keyof typeof formData, value: string) => {
+  const handleChange = (field: keyof typeof formData, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Generate tower names preview
+  const getTowerNames = () => {
+    const count = formData.tower_count;
+    const prefix = formData.tower_prefix;
+    const naming = formData.tower_naming;
+
+    const names: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const suffix = naming === "letters" 
+        ? String.fromCharCode(65 + i) // A, B, C...
+        : String(i + 1); // 1, 2, 3...
+      names.push(`${prefix} ${suffix}`);
+    }
+    return names;
   };
 
   if (isLoading) {
@@ -162,6 +196,75 @@ export default function Settings() {
                 placeholder="(00) 0000-0000"
                 disabled={!isAdmin}
               />
+            </div>
+
+            {/* Tower Configuration */}
+            <div className="border-t pt-4 mt-4">
+              <h3 className="font-medium mb-4">Configuração de Torres/Blocos</h3>
+              
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="tower_count">Quantidade</Label>
+                  <Input
+                    id="tower_count"
+                    type="number"
+                    min={1}
+                    max={26}
+                    value={formData.tower_count}
+                    onChange={(e) => handleChange("tower_count", parseInt(e.target.value) || 1)}
+                    disabled={!isAdmin}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="tower_prefix">Prefixo</Label>
+                  <Select
+                    value={formData.tower_prefix}
+                    onValueChange={(value) => handleChange("tower_prefix", value)}
+                    disabled={!isAdmin}
+                  >
+                    <SelectTrigger id="tower_prefix">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Bloco">Bloco</SelectItem>
+                      <SelectItem value="Torre">Torre</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="tower_naming">Nomenclatura</Label>
+                  <Select
+                    value={formData.tower_naming}
+                    onValueChange={(value) => handleChange("tower_naming", value)}
+                    disabled={!isAdmin}
+                  >
+                    <SelectTrigger id="tower_naming">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="letters">Letras (A, B, C...)</SelectItem>
+                      <SelectItem value="numbers">Números (1, 2, 3...)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className="mt-4 p-3 bg-muted rounded-lg">
+                <Label className="text-xs text-muted-foreground">Prévia das torres:</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {getTowerNames().map((name) => (
+                    <span
+                      key={name}
+                      className="px-2 py-1 bg-primary/10 text-primary text-sm rounded"
+                    >
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {isAdmin && (
