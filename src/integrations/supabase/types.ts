@@ -21,6 +21,9 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          party_room_capacity: number | null
+          party_room_name: string | null
+          party_room_rules: string | null
           phone: string | null
           tower_count: number | null
           tower_naming: string | null
@@ -33,6 +36,9 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          party_room_capacity?: number | null
+          party_room_name?: string | null
+          party_room_rules?: string | null
           phone?: string | null
           tower_count?: number | null
           tower_naming?: string | null
@@ -45,6 +51,9 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          party_room_capacity?: number | null
+          party_room_name?: string | null
+          party_room_rules?: string | null
           phone?: string | null
           tower_count?: number | null
           tower_naming?: string | null
