@@ -12,8 +12,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, isSameDay, startOfDay, addDays, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, Clock, Trash2, PartyPopper } from 'lucide-react';
+import { CalendarDays, Clock, Trash2, PartyPopper, Users, Info } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useQuery } from '@tanstack/react-query';
 
 type BookingPeriod = 'full_day' | 'morning' | 'afternoon';
 
@@ -35,6 +36,12 @@ interface Unit {
   unit_number: string;
   block: string | null;
   resident_name: string;
+}
+
+interface CondominiumInfo {
+  party_room_name: string | null;
+  party_room_capacity: number | null;
+  party_room_rules: string | null;
 }
 
 const periodLabels: Record<BookingPeriod, string> = {
@@ -61,6 +68,21 @@ export default function PartyRoom() {
   const [bookingToDelete, setBookingToDelete] = useState<Booking | null>(null);
   const { toast } = useToast();
   const { isAdmin, user } = useAuth();
+
+  // Fetch party room info from condominium settings
+  const { data: partyRoomInfo } = useQuery({
+    queryKey: ['party-room-info'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('condominium')
+        .select('party_room_name, party_room_capacity, party_room_rules')
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data as CondominiumInfo | null;
+    },
+  });
 
   useEffect(() => {
     fetchBookings();
@@ -256,12 +278,55 @@ export default function PartyRoom() {
 
   const availablePeriods = selectedDate ? getAvailablePeriods(selectedDate) : [];
 
+  const roomName = partyRoomInfo?.party_room_name || 'Salão de Festas';
+  const roomCapacity = partyRoomInfo?.party_room_capacity || 50;
+  const roomRules = partyRoomInfo?.party_room_rules;
+
   return (
     <MainLayout>
       <PageHeader
-        title="Salão de Festas"
-        description="Gerencie os agendamentos do salão de festas"
+        title={roomName}
+        description="Gerencie os agendamentos do espaço"
       />
+
+      {/* Party Room Info Card */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap gap-6 items-start">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <PartyPopper className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Espaço</p>
+                <p className="font-medium">{roomName}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Capacidade</p>
+                <p className="font-medium">{roomCapacity} pessoas</p>
+              </div>
+            </div>
+
+            {roomRules && (
+              <div className="flex items-start gap-3 w-full sm:w-auto sm:flex-1">
+                <div className="p-2 rounded-lg bg-primary/10 shrink-0">
+                  <Info className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm text-muted-foreground">Regras de Uso</p>
+                  <p className="text-sm whitespace-pre-wrap">{roomRules}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Calendar and Booking Form */}
