@@ -22,6 +22,9 @@ export type Database = {
           id: string
           name: string
           phone: string | null
+          tower_count: number | null
+          tower_naming: string | null
+          tower_prefix: string | null
           updated_at: string
         }
         Insert: {
@@ -31,6 +34,9 @@ export type Database = {
           id?: string
           name?: string
           phone?: string | null
+          tower_count?: number | null
+          tower_naming?: string | null
+          tower_prefix?: string | null
           updated_at?: string
         }
         Update: {
@@ -40,6 +46,9 @@ export type Database = {
           id?: string
           name?: string
           phone?: string | null
+          tower_count?: number | null
+          tower_naming?: string | null
+          tower_prefix?: string | null
           updated_at?: string
         }
         Relationships: []
