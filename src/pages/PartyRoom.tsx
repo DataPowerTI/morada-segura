@@ -24,6 +24,7 @@ interface Booking {
   period: BookingPeriod;
   unit_id: string;
   created_at: string;
+  party_room_id: number | null;
   unit?: {
     unit_number: string;
     block: string | null;
@@ -42,6 +43,8 @@ interface CondominiumInfo {
   party_room_name: string | null;
   party_room_capacity: number | null;
   party_room_rules: string | null;
+  party_room_count: number | null;
+  party_room_naming: string | null;
 }
 
 const periodLabels: Record<BookingPeriod, string> = {
@@ -60,6 +63,7 @@ export default function PartyRoom() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedUnit, setSelectedUnit] = useState<string>('');
   const [selectedPeriod, setSelectedPeriod] = useState<BookingPeriod>('full_day');
+  const [selectedPartyRoom, setSelectedPartyRoom] = useState<number>(1);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +79,7 @@ export default function PartyRoom() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('condominium')
-        .select('party_room_name, party_room_capacity, party_room_rules')
+        .select('party_room_name, party_room_capacity, party_room_rules, party_room_count, party_room_naming')
         .limit(1)
         .maybeSingle();
       
@@ -99,6 +103,7 @@ export default function PartyRoom() {
           period,
           unit_id,
           created_at,
+          party_room_id,
           unit:units(unit_number, block, resident_name)
         `)
         .order('booking_date', { ascending: true });
@@ -138,10 +143,10 @@ export default function PartyRoom() {
     }
   };
 
-  const getAvailablePeriods = (date: Date): BookingPeriod[] => {
+  const getAvailablePeriods = (date: Date, partyRoomId: number): BookingPeriod[] => {
     const dateStr = format(date, 'yyyy-MM-dd');
     const bookedPeriods = bookings
-      .filter(b => b.booking_date === dateStr)
+      .filter(b => b.booking_date === dateStr && b.party_room_id === partyRoomId)
       .map(b => b.period);
 
     // If full_day is booked, nothing is available
@@ -173,7 +178,14 @@ export default function PartyRoom() {
   };
 
   const isDateFullyBooked = (date: Date): boolean => {
-    return getAvailablePeriods(date).length === 0;
+    // Check if all party rooms are fully booked for this date
+    const roomCount = partyRoomInfo?.party_room_count || 1;
+    for (let i = 1; i <= roomCount; i++) {
+      if (getAvailablePeriods(date, i).length > 0) {
+        return false;
+      }
+    }
+    return true;
   };
 
   const hasBookingsOnDate = (date: Date): boolean => {
@@ -200,6 +212,7 @@ export default function PartyRoom() {
           booking_date: format(selectedDate, 'yyyy-MM-dd'),
           unit_id: selectedUnit,
           period: selectedPeriod,
+          party_room_id: selectedPartyRoom,
           created_by: user?.id,
         });
 
@@ -224,6 +237,7 @@ export default function PartyRoom() {
       setSelectedDate(undefined);
       setSelectedUnit('');
       setSelectedPeriod('full_day');
+      setSelectedPartyRoom(1);
       fetchBookings();
     } catch (error) {
       console.error('Error creating booking:', error);
@@ -276,11 +290,27 @@ export default function PartyRoom() {
     ? bookings.filter(b => b.booking_date === format(selectedDate, 'yyyy-MM-dd'))
     : [];
 
-  const availablePeriods = selectedDate ? getAvailablePeriods(selectedDate) : [];
+  const availablePeriods = selectedDate ? getAvailablePeriods(selectedDate, selectedPartyRoom) : [];
 
   const roomName = partyRoomInfo?.party_room_name || 'Salão de Festas';
   const roomCapacity = partyRoomInfo?.party_room_capacity || 50;
   const roomRules = partyRoomInfo?.party_room_rules;
+  const roomCount = partyRoomInfo?.party_room_count || 1;
+  const roomNaming = partyRoomInfo?.party_room_naming || 'numbers';
+
+  // Generate party room options
+  const getPartyRoomLabel = (index: number) => {
+    if (roomCount === 1) return roomName;
+    const suffix = roomNaming === 'letters' 
+      ? String.fromCharCode(65 + index - 1) 
+      : String(index);
+    return `${roomName} ${suffix}`;
+  };
+
+  const partyRoomOptions = Array.from({ length: roomCount }, (_, i) => ({
+    id: i + 1,
+    label: getPartyRoomLabel(i + 1),
+  }));
 
   return (
     <MainLayout>
@@ -388,6 +418,7 @@ export default function PartyRoom() {
                     <div className="mt-2 flex flex-wrap gap-2 justify-center">
                       {selectedDateBookings.map(booking => (
                         <Badge key={booking.id} variant="secondary">
+                          {roomCount > 1 && `${getPartyRoomLabel(booking.party_room_id || 1)} • `}
                           {periodLabels[booking.period]} - {booking.unit?.unit_number}
                           {booking.unit?.block && ` (${booking.unit.block})`}
                         </Badge>
@@ -402,6 +433,28 @@ export default function PartyRoom() {
                   </p>
                 ) : (
                   <>
+                    {/* Party Room Selection */}
+                    {roomCount > 1 && (
+                      <div className="space-y-2">
+                        <Label>Salão</Label>
+                        <Select 
+                          value={String(selectedPartyRoom)} 
+                          onValueChange={(v) => setSelectedPartyRoom(parseInt(v))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o salão" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {partyRoomOptions.map((room) => (
+                              <SelectItem key={room.id} value={String(room.id)}>
+                                {room.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
                     {/* Unit Selection */}
                     <div className="space-y-2">
                       <Label>Unidade</Label>
@@ -482,13 +535,18 @@ export default function PartyRoom() {
                     className="flex items-center justify-between p-4 rounded-lg border bg-card"
                   >
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium">
                           {format(new Date(booking.booking_date + 'T00:00:00'), "d 'de' MMMM", { locale: ptBR })}
                         </p>
                         <Badge className={periodColors[booking.period]}>
                           {periodLabels[booking.period]}
                         </Badge>
+                        {roomCount > 1 && (
+                          <Badge variant="outline">
+                            {getPartyRoomLabel(booking.party_room_id || 1)}
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {booking.unit?.unit_number}
