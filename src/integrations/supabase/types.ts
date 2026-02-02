@@ -22,7 +22,9 @@ export type Database = {
           id: string
           name: string
           party_room_capacity: number | null
+          party_room_count: number | null
           party_room_name: string | null
+          party_room_naming: string | null
           party_room_rules: string | null
           phone: string | null
           tower_count: number | null
@@ -37,7 +39,9 @@ export type Database = {
           id?: string
           name?: string
           party_room_capacity?: number | null
+          party_room_count?: number | null
           party_room_name?: string | null
+          party_room_naming?: string | null
           party_room_rules?: string | null
           phone?: string | null
           tower_count?: number | null
@@ -52,7 +56,9 @@ export type Database = {
           id?: string
           name?: string
           party_room_capacity?: number | null
+          party_room_count?: number | null
           party_room_name?: string | null
+          party_room_naming?: string | null
           party_room_rules?: string | null
           phone?: string | null
           tower_count?: number | null
@@ -118,6 +124,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          party_room_id: number | null
           period: Database["public"]["Enums"]["booking_period"]
           unit_id: string
           updated_at: string
@@ -127,6 +134,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          party_room_id?: number | null
           period?: Database["public"]["Enums"]["booking_period"]
           unit_id: string
           updated_at?: string
@@ -136,6 +144,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          party_room_id?: number | null
           period?: Database["public"]["Enums"]["booking_period"]
           unit_id?: string
           updated_at?: string
