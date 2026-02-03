@@ -55,7 +55,7 @@ export default function Settings() {
   });
 
   const { data: condominium, isLoading } = useQuery({
-    queryKey: ["condominium"],
+    queryKey: ["condominium", "full"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("condominium")
@@ -137,9 +137,8 @@ export default function Settings() {
       }
     },
     onSuccess: () => {
-      // Invalidate all condominium-related queries
-      queryClient.invalidateQueries({ queryKey: ["condominium"] });
-      queryClient.invalidateQueries({ queryKey: ["party-room-info"] });
+      // Invalidate all condominium-related queries (all sub-keys)
+      queryClient.invalidateQueries({ queryKey: ["condominium"], exact: false });
       toast.success("Informações atualizadas com sucesso!");
     },
     onError: (error) => {

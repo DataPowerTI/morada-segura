@@ -38,7 +38,7 @@ export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
 
   const { data: condominium } = useQuery({
-    queryKey: ['condominium'],
+    queryKey: ['condominium', 'name'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('condominium')
