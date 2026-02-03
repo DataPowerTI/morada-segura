@@ -67,7 +67,6 @@ export default function Settings() {
       if (error) throw error;
       return (data as Condominium) ?? null;
     },
-    staleTime: 1000 * 60, // 1 minute
   });
 
   useEffect(() => {
@@ -138,7 +137,9 @@ export default function Settings() {
       }
     },
     onSuccess: () => {
+      // Invalidate all condominium-related queries
       queryClient.invalidateQueries({ queryKey: ["condominium"] });
+      queryClient.invalidateQueries({ queryKey: ["party-room-info"] });
       toast.success("Informações atualizadas com sucesso!");
     },
     onError: (error) => {
