@@ -60,12 +60,14 @@ export default function Settings() {
       const { data, error } = await supabase
         .from("condominium")
         .select("*")
+        .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
 
       if (error) throw error;
       return (data as Condominium) ?? null;
     },
+    staleTime: 1000 * 60, // 1 minute
   });
 
   useEffect(() => {
@@ -104,14 +106,36 @@ export default function Settings() {
         party_room_naming: data.party_room_naming,
       };
 
-      const { error } = condominium?.id
-        ? await supabase
+      // Always update if we have an existing record
+      if (condominium?.id) {
+        const { error } = await supabase
+          .from("condominium")
+          .update(payload)
+          .eq("id", condominium.id);
+        if (error) throw error;
+      } else {
+        // Only insert if there's truly no record
+        const { data: existing } = await supabase
+          .from("condominium")
+          .select("id")
+          .limit(1)
+          .maybeSingle();
+        
+        if (existing?.id) {
+          // Update existing record
+          const { error } = await supabase
             .from("condominium")
             .update(payload)
-            .eq("id", condominium.id)
-        : await supabase.from("condominium").insert(payload);
-
-      if (error) throw error;
+            .eq("id", existing.id);
+          if (error) throw error;
+        } else {
+          // Create new record
+          const { error } = await supabase
+            .from("condominium")
+            .insert(payload);
+          if (error) throw error;
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["condominium"] });
