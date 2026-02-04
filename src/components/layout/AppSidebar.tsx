@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { firstRow } from '@/lib/postgrest';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/', adminOnly: false },
@@ -46,7 +47,7 @@ export function AppSidebar() {
         .limit(1)
         .maybeSingle();
       if (error) throw error;
-      return data;
+      return firstRow<{ name: string }>(data as any);
     },
   });
 
