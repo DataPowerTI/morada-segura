@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { firstRow } from "@/lib/postgrest";
 import { useAuth } from "@/contexts/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PageHeader } from "@/components/ui/page-header";
@@ -65,7 +66,7 @@ export default function Settings() {
         .maybeSingle();
 
       if (error) throw error;
-      return (data as Condominium) ?? null;
+      return firstRow<Condominium>(data as any);
     },
   });
 
@@ -119,13 +120,14 @@ export default function Settings() {
           .select("id")
           .limit(1)
           .maybeSingle();
-        
-        if (existing?.id) {
+
+        const existingRow = firstRow<{ id: string }>(existing as any);
+        if (existingRow?.id) {
           // Update existing record
           const { error } = await supabase
             .from("condominium")
             .update(payload)
-            .eq("id", existing.id);
+            .eq("id", existingRow.id);
           if (error) throw error;
         } else {
           // Create new record

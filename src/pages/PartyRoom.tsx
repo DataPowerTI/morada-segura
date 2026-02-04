@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { firstRow } from '@/lib/postgrest';
 import { format, isSameDay, startOfDay, addDays, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarDays, Clock, Trash2, PartyPopper, Users, Info } from 'lucide-react';
@@ -75,7 +76,7 @@ export default function PartyRoom() {
 
   // Fetch party room info from condominium settings
   const { data: partyRoomInfo } = useQuery({
-    queryKey: ['party-room-info'],
+    queryKey: ['condominium', 'party-room-info'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('condominium')
@@ -84,7 +85,7 @@ export default function PartyRoom() {
         .maybeSingle();
       
       if (error) throw error;
-      return data as CondominiumInfo | null;
+      return firstRow<CondominiumInfo>(data as any);
     },
   });
 
