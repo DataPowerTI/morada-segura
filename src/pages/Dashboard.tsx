@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Building2, Package, ShieldCheck, Car, Users } from 'lucide-react';
+import { Building2, Package, ShieldCheck, Car, Users, CalendarDays } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
@@ -7,6 +7,7 @@ import { StatsCard } from '@/components/ui/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { VehiclePlateSearch } from '@/components/VehiclePlateSearch';
+import { UpcomingBookings } from '@/components/dashboard/UpcomingBookings';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -188,7 +189,7 @@ export default function Dashboard() {
       </div>
 
       {/* Activity Grid */}
-      <div className="grid gap-4 md:grid-cols-2 mt-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-6">
         {/* Recent Parcels */}
         <Card>
           <CardHeader>
@@ -270,6 +271,9 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+
+        {/* Upcoming Bookings */}
+        <UpcomingBookings />
       </div>
     </MainLayout>
   );
