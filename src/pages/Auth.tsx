@@ -44,7 +44,7 @@ export default function Auth() {
       toast({
         variant: 'destructive',
         title: 'Erro ao entrar',
-        description: error.message === 'Invalid login credentials' 
+        description: error.message === 'Failed to authenticate.'
           ? 'Email ou senha incorretos'
           : error.message,
       });

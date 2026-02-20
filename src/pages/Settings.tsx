@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { pb } from "@/integrations/pocketbase/client";
 import { firstRow } from "@/lib/postgrest";
 import { useAuth } from "@/contexts/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -58,15 +58,13 @@ export default function Settings() {
   const { data: condominium, isLoading } = useQuery({
     queryKey: ["condominium", "full"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("condominium")
-        .select("*")
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) throw error;
-      return firstRow<Condominium>(data as any);
+      try {
+        const record = await pb.collection("condominium").getFirstListItem("");
+        return record as unknown as Condominium;
+      } catch (error: any) {
+        if (error.status === 404) return null;
+        throw error;
+      }
     },
   });
 
@@ -108,33 +106,17 @@ export default function Settings() {
 
       // Always update if we have an existing record
       if (condominium?.id) {
-        const { error } = await supabase
-          .from("condominium")
-          .update(payload)
-          .eq("id", condominium.id);
-        if (error) throw error;
+        await pb.collection("condominium").update(condominium.id, payload);
       } else {
-        // Only insert if there's truly no record
-        const { data: existing } = await supabase
-          .from("condominium")
-          .select("id")
-          .limit(1)
-          .maybeSingle();
-
-        const existingRow = firstRow<{ id: string }>(existing as any);
-        if (existingRow?.id) {
-          // Update existing record
-          const { error } = await supabase
-            .from("condominium")
-            .update(payload)
-            .eq("id", existingRow.id);
-          if (error) throw error;
-        } else {
-          // Create new record
-          const { error } = await supabase
-            .from("condominium")
-            .insert(payload);
-          if (error) throw error;
+        try {
+          const existing = await pb.collection("condominium").getFirstListItem("");
+          await pb.collection("condominium").update(existing.id, payload);
+        } catch (error: any) {
+          if (error.status === 404) {
+            await pb.collection("condominium").create(payload);
+          } else {
+            throw error;
+          }
         }
       }
     },
@@ -166,7 +148,7 @@ export default function Settings() {
 
     const names: string[] = [];
     for (let i = 0; i < count; i++) {
-      const suffix = naming === "letters" 
+      const suffix = naming === "letters"
         ? String.fromCharCode(65 + i) // A, B, C...
         : String(i + 1); // 1, 2, 3...
       names.push(`${prefix} ${suffix}`);
@@ -186,7 +168,7 @@ export default function Settings() {
 
     const names: string[] = [];
     for (let i = 0; i < count; i++) {
-      const suffix = naming === "letters" 
+      const suffix = naming === "letters"
         ? String.fromCharCode(65 + i) // A, B, C...
         : String(i + 1); // 1, 2, 3...
       names.push(`${baseName} ${suffix}`);
@@ -268,7 +250,7 @@ export default function Settings() {
             {/* Tower Configuration */}
             <div className="border-t pt-4 mt-4">
               <h3 className="font-medium mb-4">Configuração de Torres/Blocos</h3>
-              
+
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="tower_count">Quantidade</Label>
@@ -318,90 +300,11 @@ export default function Settings() {
                 </div>
               </div>
 
-            {/* Preview */}
-            <div className="mt-4 p-3 bg-muted rounded-lg">
-              <Label className="text-xs text-muted-foreground">Prévia das torres:</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {getTowerNames().map((name) => (
-                  <span
-                    key={name}
-                    className="px-2 py-1 bg-primary/10 text-primary text-sm rounded"
-                  >
-                    {name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Party Room Configuration */}
-          <div className="border-t pt-4 mt-4">
-            <h3 className="font-medium mb-4 flex items-center gap-2">
-              <PartyPopper className="h-4 w-4" />
-              Configuração do Salão de Festas
-            </h3>
-            
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-2">
-                <Label htmlFor="party_room_name">Nome do Espaço</Label>
-                <Input
-                  id="party_room_name"
-                  value={formData.party_room_name}
-                  onChange={(e) => handleChange("party_room_name", e.target.value)}
-                  placeholder="Salão de Festas"
-                  disabled={!isAdmin}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="party_room_count">Quantidade</Label>
-                <Input
-                  id="party_room_count"
-                  type="number"
-                  min={1}
-                  max={26}
-                  value={formData.party_room_count}
-                  onChange={(e) => handleChange("party_room_count", parseInt(e.target.value) || 1)}
-                  disabled={!isAdmin}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="party_room_naming">Nomenclatura</Label>
-                <Select
-                  value={formData.party_room_naming}
-                  onValueChange={(value) => handleChange("party_room_naming", value)}
-                  disabled={!isAdmin}
-                >
-                  <SelectTrigger id="party_room_naming">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="letters">Letras (A, B, C...)</SelectItem>
-                    <SelectItem value="numbers">Números (1, 2, 3...)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="party_room_capacity">Capacidade (pessoas)</Label>
-                <Input
-                  id="party_room_capacity"
-                  type="number"
-                  min={1}
-                  value={formData.party_room_capacity}
-                  onChange={(e) => handleChange("party_room_capacity", parseInt(e.target.value) || 1)}
-                  disabled={!isAdmin}
-                />
-              </div>
-            </div>
-
-            {/* Party Room Preview */}
-            {formData.party_room_count > 1 && (
+              {/* Preview */}
               <div className="mt-4 p-3 bg-muted rounded-lg">
-                <Label className="text-xs text-muted-foreground">Prévia dos salões:</Label>
+                <Label className="text-xs text-muted-foreground">Prévia das torres:</Label>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {getPartyRoomNames().map((name) => (
+                  {getTowerNames().map((name) => (
                     <span
                       key={name}
                       className="px-2 py-1 bg-primary/10 text-primary text-sm rounded"
@@ -411,34 +314,113 @@ export default function Settings() {
                   ))}
                 </div>
               </div>
-            )}
-
-            <div className="space-y-2 mt-4">
-              <Label htmlFor="party_room_rules">Regras de Uso</Label>
-              <Textarea
-                id="party_room_rules"
-                value={formData.party_room_rules}
-                onChange={(e) => handleChange("party_room_rules", e.target.value)}
-                placeholder="Regras e orientações para uso do salão de festas..."
-                disabled={!isAdmin}
-                rows={4}
-              />
             </div>
-          </div>
 
-          {isAdmin && (
-            <Button
-              type="submit"
-              disabled={updateMutation.isPending}
-              className="w-full sm:w-auto"
-            >
-              {updateMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
+            {/* Party Room Configuration */}
+            <div className="border-t pt-4 mt-4">
+              <h3 className="font-medium mb-4 flex items-center gap-2">
+                <PartyPopper className="h-4 w-4" />
+                Configuração do Salão de Festas
+              </h3>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2">
+                  <Label htmlFor="party_room_name">Nome do Espaço</Label>
+                  <Input
+                    id="party_room_name"
+                    value={formData.party_room_name}
+                    onChange={(e) => handleChange("party_room_name", e.target.value)}
+                    placeholder="Salão de Festas"
+                    disabled={!isAdmin}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="party_room_count">Quantidade</Label>
+                  <Input
+                    id="party_room_count"
+                    type="number"
+                    min={1}
+                    max={26}
+                    value={formData.party_room_count}
+                    onChange={(e) => handleChange("party_room_count", parseInt(e.target.value) || 1)}
+                    disabled={!isAdmin}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="party_room_naming">Nomenclatura</Label>
+                  <Select
+                    value={formData.party_room_naming}
+                    onValueChange={(value) => handleChange("party_room_naming", value)}
+                    disabled={!isAdmin}
+                  >
+                    <SelectTrigger id="party_room_naming">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="letters">Letras (A, B, C...)</SelectItem>
+                      <SelectItem value="numbers">Números (1, 2, 3...)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="party_room_capacity">Capacidade (pessoas)</Label>
+                  <Input
+                    id="party_room_capacity"
+                    type="number"
+                    min={1}
+                    value={formData.party_room_capacity}
+                    onChange={(e) => handleChange("party_room_capacity", parseInt(e.target.value) || 1)}
+                    disabled={!isAdmin}
+                  />
+                </div>
+              </div>
+
+              {/* Party Room Preview */}
+              {formData.party_room_count > 1 && (
+                <div className="mt-4 p-3 bg-muted rounded-lg">
+                  <Label className="text-xs text-muted-foreground">Prévia dos salões:</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {getPartyRoomNames().map((name) => (
+                      <span
+                        key={name}
+                        className="px-2 py-1 bg-primary/10 text-primary text-sm rounded"
+                      >
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
-              Salvar Alterações
-            </Button>
+
+              <div className="space-y-2 mt-4">
+                <Label htmlFor="party_room_rules">Regras de Uso</Label>
+                <Textarea
+                  id="party_room_rules"
+                  value={formData.party_room_rules}
+                  onChange={(e) => handleChange("party_room_rules", e.target.value)}
+                  placeholder="Regras e orientações para uso do salão de festas..."
+                  disabled={!isAdmin}
+                  rows={4}
+                />
+              </div>
+            </div>
+
+            {isAdmin && (
+              <Button
+                type="submit"
+                disabled={updateMutation.isPending}
+                className="w-full sm:w-auto"
+              >
+                {updateMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Salvar Alterações
+              </Button>
             )}
 
             {!isAdmin && (

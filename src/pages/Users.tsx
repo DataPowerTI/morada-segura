@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Shield, ShieldCheck, User } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { pb } from '@/integrations/pocketbase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,29 +39,19 @@ export default function Users() {
   async function fetchUsers() {
     try {
       // Get profiles and their roles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, created_at');
-
-      if (profilesError) throw profilesError;
-
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
-
-      if (rolesError) throw rolesError;
-
-      // Merge profiles with roles
-      const usersWithRoles: UserWithRole[] = (profiles || []).map((profile) => {
-        const userRole = roles?.find((r) => r.user_id === profile.id);
-        return {
-          id: profile.id,
-          email: '', // Will be populated if we add email to profiles
-          full_name: profile.full_name,
-          role: (userRole?.role as 'admin' | 'operator') || 'operator',
-          created_at: profile.created_at,
-        };
+      const records = await pb.collection('users').getFullList({
+        sort: 'created',
       });
+
+      const usersWithRoles: UserWithRole[] = records.map((record: any) => ({
+        id: record.id,
+        email: record.email,
+        full_name: record.name,
+        role: (record.role as 'admin' | 'operator') || 'operator',
+        created_at: record.created,
+      }));
+
+      setUsers(usersWithRoles);
 
       setUsers(usersWithRoles);
     } catch (error) {
@@ -78,27 +68,9 @@ export default function Users() {
 
   async function updateUserRole(userId: string, newRole: 'admin' | 'operator') {
     try {
-      // First check if role exists
-      const { data: existing } = await supabase
-        .from('user_roles')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (existing) {
-        const { error } = await supabase
-          .from('user_roles')
-          .update({ role: newRole })
-          .eq('user_id', userId);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('user_roles')
-          .insert({ user_id: userId, role: newRole });
-
-        if (error) throw error;
-      }
+      await pb.collection('users').update(userId, {
+        role: newRole,
+      });
 
       toast({
         title: 'Permissão atualizada',

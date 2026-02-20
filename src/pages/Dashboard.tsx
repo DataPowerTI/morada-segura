@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Building2, Package, ShieldCheck, Car, Users, CalendarDays } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { pb } from '@/integrations/pocketbase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatsCard } from '@/components/ui/stats-card';
@@ -54,71 +54,54 @@ export default function Dashboard() {
   useEffect(() => {
     async function fetchDashboardData() {
       try {
-        // Fetch units count
-        const { count: unitsCount } = await supabase
-          .from('units')
-          .select('*', { count: 'exact', head: true });
-
-        // Fetch vehicles count
-        const { count: vehiclesCount } = await supabase
-          .from('vehicles')
-          .select('*', { count: 'exact', head: true });
-
-        // Fetch pending parcels count
-        const { count: parcelsCount } = await supabase
-          .from('parcels')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'pending');
-
-        // Fetch active providers count (no exit_time)
-        const { count: providersCount } = await supabase
-          .from('service_providers')
-          .select('*', { count: 'exact', head: true })
-          .is('exit_time', null);
-
-        // Fetch active rental guests count (no exit_time)
-        const { count: guestsCount } = await supabase
-          .from('rental_guests')
-          .select('*', { count: 'exact', head: true })
-          .is('exit_time', null);
+        // Fetch counts using getList with perPage: 1
+        const unitsCount = (await pb.collection('units').getList(1, 1)).totalItems;
+        const vehiclesCount = (await pb.collection('vehicles').getList(1, 1)).totalItems;
+        const parcelsCount = (await pb.collection('parcels').getList(1, 1, { filter: 'status="pending"' })).totalItems;
+        const providersCount = (await pb.collection('service_providers').getList(1, 1, { filter: 'exit_time=null' })).totalItems;
+        const guestsCount = (await pb.collection('rental_guests').getList(1, 1, { filter: 'exit_time=null' })).totalItems;
 
         setStats({
-          totalUnits: unitsCount || 0,
-          totalVehicles: vehiclesCount || 0,
-          pendingParcels: parcelsCount || 0,
-          activeProviders: providersCount || 0,
-          activeGuests: guestsCount || 0,
+          totalUnits: unitsCount,
+          totalVehicles: vehiclesCount,
+          pendingParcels: parcelsCount,
+          activeProviders: providersCount,
+          activeGuests: guestsCount,
         });
 
         // Fetch recent parcels
-        const { data: parcelsData } = await supabase
-          .from('parcels')
-          .select(`
-            id,
-            protocol_number,
-            description,
-            status,
-            arrived_at,
-            unit:units(unit_number, block, resident_name)
-          `)
-          .order('arrived_at', { ascending: false })
-          .limit(5);
+        const parcelsRecords = await pb.collection('parcels').getList(1, 5, {
+          sort: '-arrived_at',
+          expand: 'unit_id',
+        });
 
-        if (parcelsData) {
-          setRecentParcels(parcelsData as any);
-        }
+        const formattedParcels = parcelsRecords.items.map((record: any) => ({
+          id: record.id,
+          protocol_number: record.protocol_number,
+          description: record.description,
+          status: record.status,
+          arrived_at: record.arrived_at,
+          unit: record.expand?.unit_id ? {
+            unit_number: record.expand.unit_id.unit_number,
+            block: record.expand.unit_id.block,
+            resident_name: record.expand.unit_id.resident_name,
+          } : undefined
+        }));
+
+        setRecentParcels(formattedParcels as any);
 
         // Fetch active providers
-        const { data: providersData } = await supabase
-          .from('service_providers')
-          .select('id, name, company, entry_time')
-          .is('exit_time', null)
-          .order('entry_time', { ascending: false })
-          .limit(5);
+        const providersRecords = await pb.collection('service_providers').getList(1, 5, {
+          filter: 'exit_time=null',
+          sort: '-entry_time',
+        });
 
-        if (providersData) {
-          setActiveProviders(providersData);
-        }
+        setActiveProviders(providersRecords.items.map((record: any) => ({
+          id: record.id,
+          name: record.name,
+          company: record.company,
+          entry_time: record.entry_time,
+        })));
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -139,8 +122,8 @@ export default function Dashboard() {
 
   return (
     <MainLayout>
-      <PageHeader 
-        title="Dashboard" 
+      <PageHeader
+        title="Dashboard"
         description="Visão geral do condomínio"
       />
 

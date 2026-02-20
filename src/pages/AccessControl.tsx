@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { CameraCapture } from '@/components/CameraCapture';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { supabase } from '@/integrations/supabase/client';
+import { pb, getFileUrl } from '@/integrations/pocketbase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -67,15 +67,15 @@ export default function AccessControl() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const { 
-    videoRef, 
-    canvasRef, 
-    cameraActive, 
-    capturedPhoto, 
+  const {
+    videoRef,
+    canvasRef,
+    cameraActive,
+    capturedPhoto,
     facingMode,
-    startCamera, 
-    stopCamera, 
-    capturePhoto, 
+    startCamera,
+    stopCamera,
+    capturePhoto,
     resetPhoto,
     setCapturedPhoto,
     switchCamera,
@@ -99,13 +99,29 @@ export default function AccessControl() {
 
   async function fetchProviders() {
     try {
-      const { data, error } = await supabase
-        .from('service_providers')
-        .select('*, units(id, unit_number, block, resident_name)')
-        .order('entry_time', { ascending: false });
+      const records = await pb.collection('service_providers').getFullList({
+        sort: '-entry_time',
+        expand: 'unit_id',
+      });
 
-      if (error) throw error;
-      setProviders(data || []);
+      const formattedProviders = records.map((record: any) => ({
+        id: record.id,
+        name: record.name,
+        document: record.document,
+        company: record.company,
+        photo_url: record.photo ? getFileUrl('service_providers', record.id, record.photo) : null,
+        entry_time: record.entry_time,
+        exit_time: record.exit_time,
+        unit_id: record.unit_id,
+        units: record.expand?.unit_id ? {
+          id: record.expand.unit_id.id,
+          unit_number: record.expand.unit_id.unit_number,
+          block: record.expand.unit_id.block,
+          resident_name: record.expand.unit_id.resident_name,
+        } : null
+      }));
+
+      setProviders(formattedProviders);
     } catch (error) {
       console.error('Error fetching providers:', error);
     } finally {
@@ -115,13 +131,18 @@ export default function AccessControl() {
 
   async function fetchUnits() {
     try {
-      const { data, error } = await supabase
-        .from('units')
-        .select('id, unit_number, block, resident_name')
-        .order('unit_number');
+      const records = await pb.collection('units').getFullList({
+        sort: 'unit_number',
+      });
 
-      if (error) throw error;
-      setUnits(data || []);
+      const formattedUnits = records.map((record: any) => ({
+        id: record.id,
+        unit_number: record.unit_number,
+        block: record.block,
+        resident_name: record.resident_name,
+      }));
+
+      setUnits(formattedUnits);
     } catch (error) {
       console.error('Error fetching units:', error);
     }
@@ -142,60 +163,29 @@ export default function AccessControl() {
     capturePhoto();
   };
 
-  async function uploadPhoto(dataUrl: string): Promise<string | null> {
-    try {
-      const response = await fetch(dataUrl);
-      const blob = await response.blob();
-      
-      // Validate file size (max 5MB)
-      if (blob.size > 5 * 1024 * 1024) {
-        toast({
-          variant: 'destructive',
-          title: 'Erro',
-          description: 'A foto é muito grande. Máximo permitido: 5MB.',
-        });
-        return null;
-      }
-      
-      const fileName = `providers/${Date.now()}.jpg`;
-
-      const { error } = await supabase.storage.from('photos').upload(fileName, blob, {
-        contentType: 'image/jpeg',
-      });
-
-      if (error) throw error;
-
-      // Use signed URL for private bucket (1 year expiry for stored URLs)
-      const { data: signedData, error: signedError } = await supabase.storage
-        .from('photos')
-        .createSignedUrl(fileName, 60 * 60 * 24 * 365); // 1 year
-      
-      if (signedError) throw signedError;
-      return signedData.signedUrl;
-    } catch (error) {
-      console.error('Error uploading photo:', error);
-      return null;
-    }
+  async function dataUrlToFile(dataUrl: string, fileName: string): Promise<File> {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    return new File([blob], fileName, { type: 'image/jpeg' });
   }
 
   async function onSubmit(data: ProviderFormData) {
     setIsSubmitting(true);
     try {
-      let photoUrl = null;
+      const formData = new FormData();
+      formData.append('name', data.name);
+      formData.append('document', data.document || '');
+      formData.append('company', data.company || '');
+      formData.append('unit_id', data.unit_id || '');
+      formData.append('created_by', user?.id || '');
+      formData.append('entry_time', new Date().toISOString());
+
       if (capturedPhoto) {
-        photoUrl = await uploadPhoto(capturedPhoto);
+        const file = await dataUrlToFile(capturedPhoto, 'provider.jpg');
+        formData.append('photo', file);
       }
 
-      const { error } = await supabase.from('service_providers').insert({
-        name: data.name,
-        document: data.document || null,
-        company: data.company || null,
-        photo_url: photoUrl,
-        unit_id: data.unit_id || null,
-        created_by: user?.id,
-      });
-
-      if (error) throw error;
+      await pb.collection('service_providers').create(formData);
 
       toast({
         title: 'Entrada registrada',
@@ -219,12 +209,9 @@ export default function AccessControl() {
 
   async function registerExit(provider: ServiceProvider) {
     try {
-      const { error } = await supabase
-        .from('service_providers')
-        .update({ exit_time: new Date().toISOString() })
-        .eq('id', provider.id);
-
-      if (error) throw error;
+      await pb.collection('service_providers').update(provider.id, {
+        exit_time: new Date().toISOString(),
+      });
 
       toast({
         title: 'Saída registrada',

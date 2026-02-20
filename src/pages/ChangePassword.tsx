@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Building2, Lock, Loader2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { pb } from '@/integrations/pocketbase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,20 +39,12 @@ export default function ChangePassword() {
 
     setIsLoading(true);
     try {
-      // Update password
-      const { error: passwordError } = await supabase.auth.updateUser({
+      // Update password and mark as changed in one go
+      await pb.collection('users').update(user.id, {
         password: data.newPassword,
+        passwordConfirm: data.newPassword,
+        must_change_password: false,
       });
-
-      if (passwordError) throw passwordError;
-
-      // Mark password as changed
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ must_change_password: false })
-        .eq('id', user.id);
-
-      if (profileError) throw profileError;
 
       toast({
         title: 'Senha alterada!',

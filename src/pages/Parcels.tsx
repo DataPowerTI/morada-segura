@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { CameraCapture } from '@/components/CameraCapture';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { supabase } from '@/integrations/supabase/client';
+import { pb, getFileUrl } from '@/integrations/pocketbase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -84,15 +84,15 @@ export default function Parcels() {
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
   const { user } = useAuth();
-  const { 
-    videoRef, 
-    canvasRef, 
-    cameraActive, 
-    capturedPhoto, 
+  const {
+    videoRef,
+    canvasRef,
+    cameraActive,
+    capturedPhoto,
     facingMode,
-    startCamera, 
-    stopCamera, 
-    capturePhoto, 
+    startCamera,
+    stopCamera,
+    capturePhoto,
     resetPhoto,
     setCapturedPhoto,
     switchCamera,
@@ -113,22 +113,29 @@ export default function Parcels() {
 
   async function fetchParcels() {
     try {
-      const { data, error } = await supabase
-        .from('parcels')
-        .select(`
-          id,
-          protocol_number,
-          description,
-          photo_url,
-          status,
-          arrived_at,
-          collected_at,
-          unit:units(id, unit_number, block, resident_name, phone_number)
-        `)
-        .order('arrived_at', { ascending: false });
+      const records = await pb.collection('parcels').getFullList({
+        sort: '-arrived_at',
+        expand: 'unit_id',
+      });
 
-      if (error) throw error;
-      setParcels(data as any);
+      const formattedParcels = records.map((record: any) => ({
+        id: record.id,
+        protocol_number: record.protocol_number,
+        description: record.description,
+        photo_url: record.photo ? getFileUrl('parcels', record.id, record.photo) : null,
+        status: record.status,
+        arrived_at: record.arrived_at,
+        collected_at: record.collected_at,
+        unit: record.expand?.unit_id ? {
+          id: record.expand.unit_id.id,
+          unit_number: record.expand.unit_id.unit_number,
+          block: record.expand.unit_id.block,
+          resident_name: record.expand.unit_id.resident_name,
+          phone_number: record.expand.unit_id.phone_number,
+        } : undefined
+      }));
+
+      setParcels(formattedParcels as any);
     } catch (error) {
       console.error('Error fetching parcels:', error);
     } finally {
@@ -138,14 +145,19 @@ export default function Parcels() {
 
   async function fetchUnits() {
     try {
-      const { data, error } = await supabase
-        .from('units')
-        .select('id, unit_number, block, resident_name, phone_number')
-        .order('block')
-        .order('unit_number');
+      const records = await pb.collection('units').getFullList({
+        sort: 'block,unit_number',
+      });
 
-      if (error) throw error;
-      setUnits(data || []);
+      const formattedUnits = records.map((record: any) => ({
+        id: record.id,
+        unit_number: record.unit_number,
+        block: record.block,
+        resident_name: record.resident_name,
+        phone_number: record.phone_number,
+      }));
+
+      setUnits(formattedUnits);
     } catch (error) {
       console.error('Error fetching units:', error);
     }
@@ -166,58 +178,28 @@ export default function Parcels() {
     capturePhoto();
   };
 
-  async function uploadPhoto(dataUrl: string): Promise<string | null> {
-    try {
-      const response = await fetch(dataUrl);
-      const blob = await response.blob();
-      
-      // Validate file size (max 5MB)
-      if (blob.size > 5 * 1024 * 1024) {
-        toast({
-          variant: 'destructive',
-          title: 'Erro',
-          description: 'A foto é muito grande. Máximo permitido: 5MB.',
-        });
-        return null;
-      }
-      
-      const fileName = `parcels/${Date.now()}.jpg`;
-
-      const { error } = await supabase.storage.from('photos').upload(fileName, blob, {
-        contentType: 'image/jpeg',
-      });
-
-      if (error) throw error;
-
-      // Use signed URL for private bucket (1 year expiry for stored URLs)
-      const { data: signedData, error: signedError } = await supabase.storage
-        .from('photos')
-        .createSignedUrl(fileName, 60 * 60 * 24 * 365); // 1 year
-      
-      if (signedError) throw signedError;
-      return signedData.signedUrl;
-    } catch (error) {
-      console.error('Error uploading photo:', error);
-      return null;
-    }
+  async function dataUrlToFile(dataUrl: string, fileName: string): Promise<File> {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    return new File([blob], fileName, { type: 'image/jpeg' });
   }
 
   async function onSubmit(data: ParcelFormData) {
     setIsSubmitting(true);
     try {
-      let photoUrl = null;
+      const formData = new FormData();
+      formData.append('unit_id', data.unit_id);
+      formData.append('description', data.description);
+      formData.append('created_by', user?.id || '');
+      formData.append('status', 'pending');
+      formData.append('arrived_at', new Date().toISOString());
+
       if (capturedPhoto) {
-        photoUrl = await uploadPhoto(capturedPhoto);
+        const file = await dataUrlToFile(capturedPhoto, 'parcel.jpg');
+        formData.append('photo', file);
       }
 
-      const { error } = await supabase.from('parcels').insert({
-        unit_id: data.unit_id,
-        description: data.description,
-        photo_url: photoUrl,
-        created_by: user?.id,
-      });
-
-      if (error) throw error;
+      await pb.collection('parcels').create(formData);
 
       toast({
         title: 'Encomenda registrada',
@@ -241,15 +223,10 @@ export default function Parcels() {
 
   async function markAsCollected(parcel: Parcel) {
     try {
-      const { error } = await supabase
-        .from('parcels')
-        .update({
-          status: 'collected',
-          collected_at: new Date().toISOString(),
-        })
-        .eq('id', parcel.id);
-
-      if (error) throw error;
+      await pb.collection('parcels').update(parcel.id, {
+        status: 'collected',
+        collected_at: new Date().toISOString(),
+      });
 
       toast({
         title: 'Entrega confirmada',

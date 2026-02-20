@@ -1,8 +1,8 @@
-import { 
-  LayoutDashboard, 
-  Building2, 
-  ShieldCheck, 
-  Package, 
+import {
+  LayoutDashboard,
+  Building2,
+  ShieldCheck,
+  Package,
   Users,
   LogOut,
   ChevronLeft,
@@ -18,7 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { pb } from '@/integrations/pocketbase/client';
 import { firstRow } from '@/lib/postgrest';
 
 const menuItems = [
@@ -41,13 +41,15 @@ export function AppSidebar() {
   const { data: condominium } = useQuery({
     queryKey: ['condominium', 'name'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('condominium')
-        .select('name')
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return firstRow<{ name: string }>(data as any);
+      try {
+        const record = await pb.collection('condominium').getFirstListItem('', {
+          fields: 'name'
+        });
+        return record as unknown as { name: string };
+      } catch (error: any) {
+        if (error.status === 404) return null;
+        throw error;
+      }
     },
   });
 
@@ -56,7 +58,7 @@ export function AppSidebar() {
   const displayName = condominium?.name || 'CondoControl';
 
   return (
-    <aside 
+    <aside
       className={cn(
         "fixed left-0 top-0 z-40 h-screen transition-all duration-300 hidden md:flex flex-col",
         collapsed ? "w-16" : "w-64"
@@ -113,17 +115,29 @@ export function AppSidebar() {
             </p>
           </div>
         )}
-        <Button
-          variant="ghost"
-          onClick={signOut}
-          className={cn(
-            "w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-destructive",
-            collapsed ? "px-2" : "justify-start"
+        <div className="space-y-1">
+          <Button
+            variant="ghost"
+            onClick={signOut}
+            className={cn(
+              "w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-destructive",
+              collapsed ? "px-2" : "justify-start"
+            )}
+          >
+            <LogOut className="h-5 w-5" />
+            {!collapsed && <span className="ml-3">Sair</span>}
+          </Button>
+          {!collapsed && (
+            <div className="px-3 pt-2 border-t border-sidebar-border/30 mt-2">
+              <p className="text-[10px] text-sidebar-foreground/40 text-center font-medium uppercase tracking-wider">
+                Desenvolvido por
+              </p>
+              <p className="text-[11px] text-sidebar-foreground/60 text-center font-bold">
+                Data Power Labs
+              </p>
+            </div>
           )}
-        >
-          <LogOut className="h-5 w-5" />
-          {!collapsed && <span className="ml-3">Sair</span>}
-        </Button>
+        </div>
       </div>
     </aside>
   );

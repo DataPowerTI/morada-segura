@@ -3,7 +3,7 @@ import { Plus, Car, Bike, Truck, Edit, Trash2 } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { supabase } from '@/integrations/supabase/client';
+import { pb } from '@/integrations/pocketbase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -93,14 +93,19 @@ export function UnitVehicles({ unitId, unitNumber, block }: UnitVehiclesProps) {
 
   async function fetchVehicles() {
     try {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select('*')
-        .eq('unit_id', unitId)
-        .order('created_at', { ascending: false });
+      const records = await pb.collection('vehicles').getFullList({
+        filter: `unit_id = "${unitId}"`,
+        sort: '-created',
+      });
 
-      if (error) throw error;
-      setVehicles(data || []);
+      setVehicles(records.map((r: any) => ({
+        id: r.id,
+        plate: r.plate,
+        model: r.model,
+        color: r.color,
+        type: r.type,
+        unit_id: r.unit_id,
+      })));
     } catch (error) {
       console.error('Error fetching vehicles:', error);
     } finally {
@@ -133,32 +138,25 @@ export function UnitVehicles({ unitId, unitNumber, block }: UnitVehiclesProps) {
   async function onSubmit(data: VehicleFormData) {
     try {
       if (editingVehicle) {
-        const { error } = await supabase
-          .from('vehicles')
-          .update({
-            plate: data.plate.toUpperCase().trim(),
-            model: data.model.trim(),
-            color: data.color?.trim() || null,
-            type: data.type || 'car',
-          })
-          .eq('id', editingVehicle.id);
-
-        if (error) throw error;
-
-        toast({
-          title: 'Veículo atualizado',
-          description: 'Os dados foram atualizados com sucesso.',
-        });
-      } else {
-        const { error } = await supabase.from('vehicles').insert({
-          unit_id: unitId,
+        await pb.collection('vehicles').update(editingVehicle.id, {
           plate: data.plate.toUpperCase().trim(),
           model: data.model.trim(),
           color: data.color?.trim() || null,
           type: data.type || 'car',
         });
 
-        if (error) throw error;
+        toast({
+          title: 'Veículo atualizado',
+          description: 'Os dados foram atualizados com sucesso.',
+        });
+      } else {
+        await pb.collection('vehicles').create({
+          unit_id: unitId,
+          plate: data.plate.toUpperCase().trim(),
+          model: data.model.trim(),
+          color: data.color?.trim() || null,
+          type: data.type || 'car',
+        });
 
         toast({
           title: 'Veículo cadastrado',
@@ -181,9 +179,7 @@ export function UnitVehicles({ unitId, unitNumber, block }: UnitVehiclesProps) {
     if (!deleteVehicle) return;
 
     try {
-      const { error } = await supabase.from('vehicles').delete().eq('id', deleteVehicle.id);
-
-      if (error) throw error;
+      await pb.collection('vehicles').delete(deleteVehicle.id);
 
       toast({
         title: 'Veículo excluído',

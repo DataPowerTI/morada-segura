@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { pb } from '@/integrations/pocketbase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { firstRow } from '@/lib/postgrest';
 import { format, isSameDay, startOfDay, addDays, isBefore } from 'date-fns';
@@ -78,14 +78,15 @@ export default function PartyRoom() {
   const { data: partyRoomInfo } = useQuery({
     queryKey: ['condominium', 'party-room-info'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('condominium')
-        .select('party_room_name, party_room_capacity, party_room_rules, party_room_count, party_room_naming')
-        .limit(1)
-        .maybeSingle();
-      
-      if (error) throw error;
-      return firstRow<CondominiumInfo>(data as any);
+      try {
+        const record = await pb.collection('condominium').getFirstListItem('', {
+          fields: 'party_room_name, party_room_capacity, party_room_rules, party_room_count, party_room_naming'
+        });
+        return record as unknown as CondominiumInfo;
+      } catch (error: any) {
+        if (error.status === 404) return null;
+        throw error;
+      }
     },
   });
 
@@ -96,27 +97,25 @@ export default function PartyRoom() {
 
   const fetchBookings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('party_room_bookings')
-        .select(`
-          id,
-          booking_date,
-          period,
-          unit_id,
-          created_at,
-          party_room_id,
-          unit:units(unit_number, block, resident_name)
-        `)
-        .order('booking_date', { ascending: true });
+      const records = await pb.collection('party_room_bookings').getFullList({
+        sort: 'booking_date',
+        expand: 'unit_id',
+      });
 
-      if (error) throw error;
-      
-      const typedData = (data || []).map(item => ({
-        ...item,
-        period: item.period as BookingPeriod,
-        unit: Array.isArray(item.unit) ? item.unit[0] : item.unit
+      const typedData = records.map((record: any) => ({
+        id: record.id,
+        booking_date: record.booking_date,
+        period: record.period as BookingPeriod,
+        unit_id: record.unit_id,
+        created_at: record.created,
+        party_room_id: record.party_room_id,
+        unit: record.expand?.unit_id ? {
+          unit_number: record.expand.unit_id.unit_number,
+          block: record.expand.unit_id.block,
+          resident_name: record.expand.unit_id.resident_name,
+        } : undefined
       }));
-      
+
       setBookings(typedData);
     } catch (error) {
       console.error('Error fetching bookings:', error);
@@ -132,13 +131,15 @@ export default function PartyRoom() {
 
   const fetchUnits = async () => {
     try {
-      const { data, error } = await supabase
-        .from('units')
-        .select('id, unit_number, block, resident_name')
-        .order('unit_number');
-
-      if (error) throw error;
-      setUnits(data || []);
+      const records = await pb.collection('units').getFullList({
+        sort: 'unit_number',
+      });
+      setUnits(records.map((r: any) => ({
+        id: r.id,
+        unit_number: r.unit_number,
+        block: r.block,
+        resident_name: r.resident_name,
+      })));
     } catch (error) {
       console.error('Error fetching units:', error);
     }
@@ -207,28 +208,13 @@ export default function PartyRoom() {
     setSubmitting(true);
 
     try {
-      const { error } = await supabase
-        .from('party_room_bookings')
-        .insert({
-          booking_date: format(selectedDate, 'yyyy-MM-dd'),
-          unit_id: selectedUnit,
-          period: selectedPeriod,
-          party_room_id: selectedPartyRoom,
-          created_by: user?.id,
-        });
-
-      if (error) {
-        if (error.code === '23505') {
-          toast({
-            title: 'Horário indisponível',
-            description: 'Este período já está agendado para esta data.',
-            variant: 'destructive',
-          });
-        } else {
-          throw error;
-        }
-        return;
-      }
+      await pb.collection('party_room_bookings').create({
+        booking_date: format(selectedDate, 'yyyy-MM-dd'),
+        unit_id: selectedUnit,
+        period: selectedPeriod,
+        party_room_id: selectedPartyRoom,
+        created_by: user?.id,
+      });
 
       toast({
         title: 'Sucesso',
@@ -256,12 +242,7 @@ export default function PartyRoom() {
     if (!bookingToDelete) return;
 
     try {
-      const { error } = await supabase
-        .from('party_room_bookings')
-        .delete()
-        .eq('id', bookingToDelete.id);
-
-      if (error) throw error;
+      await pb.collection('party_room_bookings').delete(bookingToDelete.id);
 
       toast({
         title: 'Sucesso',
@@ -302,8 +283,8 @@ export default function PartyRoom() {
   // Generate party room options
   const getPartyRoomLabel = (index: number) => {
     if (roomCount === 1) return roomName;
-    const suffix = roomNaming === 'letters' 
-      ? String.fromCharCode(65 + index - 1) 
+    const suffix = roomNaming === 'letters'
+      ? String.fromCharCode(65 + index - 1)
       : String(index);
     return `${roomName} ${suffix}`;
   };
@@ -333,7 +314,7 @@ export default function PartyRoom() {
                 <p className="font-medium">{roomName}</p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10">
                 <Users className="h-5 w-5 text-primary" />
@@ -382,11 +363,11 @@ export default function PartyRoom() {
                   fullyBooked: (date) => isDateFullyBooked(date),
                 }}
                 modifiersStyles={{
-                  booked: { 
+                  booked: {
                     backgroundColor: 'hsl(var(--primary) / 0.2)',
                     borderRadius: '0.375rem'
                   },
-                  fullyBooked: { 
+                  fullyBooked: {
                     backgroundColor: 'hsl(var(--destructive) / 0.2)',
                     color: 'hsl(var(--destructive))',
                     borderRadius: '0.375rem'
@@ -438,8 +419,8 @@ export default function PartyRoom() {
                     {roomCount > 1 && (
                       <div className="space-y-2">
                         <Label>Salão</Label>
-                        <Select 
-                          value={String(selectedPartyRoom)} 
+                        <Select
+                          value={String(selectedPartyRoom)}
                           onValueChange={(v) => setSelectedPartyRoom(parseInt(v))}
                         >
                           <SelectTrigger>
@@ -478,8 +459,8 @@ export default function PartyRoom() {
                     {/* Period Selection */}
                     <div className="space-y-2">
                       <Label>Período</Label>
-                      <Select 
-                        value={availablePeriods.includes(selectedPeriod) ? selectedPeriod : ''} 
+                      <Select
+                        value={availablePeriods.includes(selectedPeriod) ? selectedPeriod : ''}
                         onValueChange={(v) => setSelectedPeriod(v as BookingPeriod)}
                       >
                         <SelectTrigger>

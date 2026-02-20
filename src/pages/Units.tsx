@@ -3,7 +3,7 @@ import { Plus, Search, Edit, Trash2, Phone, Car, Eye } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { supabase } from '@/integrations/supabase/client';
+import { pb } from '@/integrations/pocketbase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -106,14 +106,19 @@ export default function Units() {
 
   async function fetchUnits() {
     try {
-      const { data, error } = await supabase
-        .from('units')
-        .select('*')
-        .order('block', { ascending: true })
-        .order('unit_number', { ascending: true });
+      const records = await pb.collection('units').getFullList({
+        sort: 'block,unit_number',
+      });
 
-      if (error) throw error;
-      setUnits(data || []);
+      const formattedUnits = records.map((record: any) => ({
+        id: record.id,
+        unit_number: record.unit_number,
+        block: record.block,
+        resident_name: record.resident_name,
+        phone_number: record.phone_number,
+      }));
+
+      setUnits(formattedUnits);
     } catch (error) {
       console.error('Error fetching units:', error);
       toast({
@@ -128,14 +133,12 @@ export default function Units() {
 
   async function fetchVehicleCounts() {
     try {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select('unit_id');
-
-      if (error) throw error;
+      const records = await pb.collection('vehicles').getFullList({
+        fields: 'unit_id',
+      });
 
       const counts: Record<string, number> = {};
-      (data || []).forEach((v) => {
+      records.forEach((v: any) => {
         counts[v.unit_id] = (counts[v.unit_id] || 0) + 1;
       });
       setVehicleCounts(counts);
@@ -169,31 +172,24 @@ export default function Units() {
   async function onSubmit(data: UnitFormData) {
     try {
       if (editingUnit) {
-        const { error } = await supabase
-          .from('units')
-          .update({
-            unit_number: data.unit_number,
-            block: data.block || null,
-            resident_name: data.resident_name,
-            phone_number: data.phone_number || null,
-          })
-          .eq('id', editingUnit.id);
-
-        if (error) throw error;
-
-        toast({
-          title: 'Unidade atualizada',
-          description: 'Os dados foram atualizados com sucesso.',
-        });
-      } else {
-        const { error } = await supabase.from('units').insert({
+        await pb.collection('units').update(editingUnit.id, {
           unit_number: data.unit_number,
           block: data.block || null,
           resident_name: data.resident_name,
           phone_number: data.phone_number || null,
         });
 
-        if (error) throw error;
+        toast({
+          title: 'Unidade atualizada',
+          description: 'Os dados foram atualizados com sucesso.',
+        });
+      } else {
+        await pb.collection('units').create({
+          unit_number: data.unit_number,
+          block: data.block || null,
+          resident_name: data.resident_name,
+          phone_number: data.phone_number || null,
+        });
 
         toast({
           title: 'Unidade cadastrada',
@@ -216,9 +212,7 @@ export default function Units() {
     if (!deleteUnit) return;
 
     try {
-      const { error } = await supabase.from('units').delete().eq('id', deleteUnit.id);
-
-      if (error) throw error;
+      await pb.collection('units').delete(deleteUnit.id);
 
       toast({
         title: 'Unidade excluída',
@@ -419,7 +413,7 @@ export default function Units() {
               )}
             </SheetTitle>
           </SheetHeader>
-          
+
           {selectedUnit && (
             <div className="mt-6 space-y-6">
               {/* Unit Info */}

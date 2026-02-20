@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Search, Car, User, Building2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { pb } from '@/integrations/pocketbase/client';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +34,7 @@ export function VehiclePlateSearch() {
 
   async function handleSearch(value: string) {
     setSearchTerm(value);
-    
+
     if (value.length < 2) {
       setResults([]);
       setHasSearched(false);
@@ -46,22 +46,32 @@ export function VehiclePlateSearch() {
 
     try {
       const searchValue = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-      
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select(`
-          id,
-          plate,
-          model,
-          color,
-          type,
-          unit:units(unit_number, block, resident_name, phone_number)
-        `)
-        .ilike('plate', `%${searchValue}%`)
-        .limit(5);
 
-      if (error) throw error;
-      setResults(data as VehicleResult[] || []);
+      const records = await pb.collection('vehicles').getList(1, 5, {
+        filter: `plate ~ "${searchValue}"`,
+        expand: 'unit_id',
+      });
+
+      const formattedResults: VehicleResult[] = records.items.map((record: any) => ({
+        id: record.id,
+        plate: record.plate,
+        model: record.model,
+        color: record.color,
+        type: record.type,
+        unit: record.expand?.unit_id ? {
+          unit_number: record.expand.unit_id.unit_number,
+          block: record.expand.unit_id.block,
+          resident_name: record.expand.unit_id.resident_name,
+          phone_number: record.expand.unit_id.phone_number,
+        } : {
+          unit_number: '',
+          block: null,
+          resident_name: '',
+          phone_number: null,
+        }
+      }));
+
+      setResults(formattedResults);
     } catch (error) {
       console.error('Error searching vehicles:', error);
       setResults([]);
@@ -124,7 +134,7 @@ export function VehiclePlateSearch() {
                   </span>
                 </div>
                 {vehicle.unit?.phone_number && (
-                  <a 
+                  <a
                     href={`tel:${vehicle.unit.phone_number}`}
                     className="text-sm text-primary hover:underline"
                   >

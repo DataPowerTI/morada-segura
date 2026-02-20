@@ -3,7 +3,7 @@ import { Plus, Search, Edit, Trash2, Car } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { supabase } from '@/integrations/supabase/client';
+import { pb } from '@/integrations/pocketbase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -122,16 +122,26 @@ export default function Vehicles() {
 
   async function fetchVehicles() {
     try {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select(`
-          *,
-          unit:units(unit_number, block, resident_name)
-        `)
-        .order('plate', { ascending: true });
+      const records = await pb.collection('vehicles').getFullList({
+        sort: 'plate',
+        expand: 'unit_id',
+      });
 
-      if (error) throw error;
-      setVehicles(data || []);
+      const formattedData = records.map((record: any) => ({
+        id: record.id,
+        unit_id: record.unit_id,
+        plate: record.plate,
+        model: record.model,
+        color: record.color,
+        type: record.type,
+        unit: record.expand?.unit_id ? {
+          unit_number: record.expand.unit_id.unit_number,
+          block: record.expand.unit_id.block,
+          resident_name: record.expand.unit_id.resident_name,
+        } : undefined
+      }));
+
+      setVehicles(formattedData);
     } catch (error) {
       console.error('Error fetching vehicles:', error);
       toast({
@@ -146,14 +156,18 @@ export default function Vehicles() {
 
   async function fetchUnits() {
     try {
-      const { data, error } = await supabase
-        .from('units')
-        .select('id, unit_number, block, resident_name')
-        .order('block', { ascending: true })
-        .order('unit_number', { ascending: true });
+      const records = await pb.collection('units').getFullList({
+        sort: 'block,unit_number',
+      });
 
-      if (error) throw error;
-      setUnits(data || []);
+      const formattedUnits = records.map((record: any) => ({
+        id: record.id,
+        unit_number: record.unit_number,
+        block: record.block,
+        resident_name: record.resident_name,
+      }));
+
+      setUnits(formattedUnits);
     } catch (error) {
       console.error('Error fetching units:', error);
     }
@@ -186,27 +200,9 @@ export default function Vehicles() {
   async function onSubmit(data: VehicleFormData) {
     try {
       const plateUpper = data.plate.toUpperCase().replace(/[^A-Z0-9]/g, '');
-      
+
       if (editingVehicle) {
-        const { error } = await supabase
-          .from('vehicles')
-          .update({
-            unit_id: data.unit_id,
-            plate: plateUpper,
-            model: data.model,
-            color: data.color || null,
-            type: data.type,
-          })
-          .eq('id', editingVehicle.id);
-
-        if (error) throw error;
-
-        toast({
-          title: 'Veículo atualizado',
-          description: 'Os dados foram atualizados com sucesso.',
-        });
-      } else {
-        const { error } = await supabase.from('vehicles').insert({
+        await pb.collection('vehicles').update(editingVehicle.id, {
           unit_id: data.unit_id,
           plate: plateUpper,
           model: data.model,
@@ -214,7 +210,18 @@ export default function Vehicles() {
           type: data.type,
         });
 
-        if (error) throw error;
+        toast({
+          title: 'Veículo atualizado',
+          description: 'Os dados foram atualizados com sucesso.',
+        });
+      } else {
+        await pb.collection('vehicles').create({
+          unit_id: data.unit_id,
+          plate: plateUpper,
+          model: data.model,
+          color: data.color || null,
+          type: data.type,
+        });
 
         toast({
           title: 'Veículo cadastrado',
@@ -237,9 +244,7 @@ export default function Vehicles() {
     if (!deleteVehicle) return;
 
     try {
-      const { error } = await supabase.from('vehicles').delete().eq('id', deleteVehicle.id);
-
-      if (error) throw error;
+      await pb.collection('vehicles').delete(deleteVehicle.id);
 
       toast({
         title: 'Veículo excluído',
@@ -305,9 +310,9 @@ export default function Vehicles() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="plate">Placa *</Label>
-                  <Input 
-                    id="plate" 
-                    placeholder="ABC1D23" 
+                  <Input
+                    id="plate"
+                    placeholder="ABC1D23"
                     {...form.register('plate')}
                     className="uppercase"
                   />
@@ -450,14 +455,14 @@ export default function Vehicles() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o veículo de placa {deleteVehicle?.plate}? 
+              Tem certeza que deseja excluir o veículo de placa {deleteVehicle?.plate}?
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDelete} 
+            <AlertDialogAction
+              onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir

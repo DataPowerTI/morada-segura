@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { pb } from '@/integrations/pocketbase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
@@ -28,21 +28,23 @@ export function UpcomingBookings() {
     queryKey: ['dashboard-upcoming-bookings'],
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await supabase
-        .from('party_room_bookings')
-        .select(`
-          id,
-          booking_date,
-          period,
-          party_room_id,
-          unit:units(unit_number, block, resident_name)
-        `)
-        .gte('booking_date', today)
-        .order('booking_date', { ascending: true })
-        .limit(5);
+      const records = await pb.collection('party_room_bookings').getList(1, 5, {
+        filter: `booking_date >= "${today}"`,
+        sort: 'booking_date',
+        expand: 'unit_id',
+      });
 
-      if (error) throw error;
-      return (data as unknown as Booking[]) || [];
+      return records.items.map((record: any) => ({
+        id: record.id,
+        booking_date: record.booking_date,
+        period: record.period as 'full_day' | 'morning' | 'afternoon',
+        party_room_id: record.party_room_id,
+        unit: record.expand?.unit_id ? {
+          unit_number: record.expand.unit_id.unit_number,
+          block: record.expand.unit_id.block,
+          resident_name: record.expand.unit_id.resident_name,
+        } : null,
+      })) || [];
     },
   });
 
