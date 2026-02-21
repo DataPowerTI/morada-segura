@@ -51,7 +51,7 @@ export default function Logs() {
         try {
             console.log('Tentando busca completa...');
             const records = await pb.collection('system_logs').getFullList({
-                sort: '-created',
+                sort: '-timestamp,-created',
                 expand: 'user_id',
             });
             setLogs(records as any);
@@ -60,7 +60,7 @@ export default function Logs() {
             try {
                 // Tenta sem expand mas com sort
                 const records = await pb.collection('system_logs').getFullList({
-                    sort: '-created',
+                    sort: '-timestamp,-created',
                 });
                 setLogs(records as any);
                 resolveUsersManually(records);
@@ -69,10 +69,10 @@ export default function Logs() {
                 try {
                     // Tenta o mais básico possível
                     const records = await pb.collection('system_logs').getFullList();
-                    // Ordena manualmente no frontend já que o banco não quer
+                    // Ordena manualmente no frontend
                     const sorted = [...records].sort((a, b) => {
-                        const dateA = a.created || (a as any).created_at || (a as any).id || '';
-                        const dateB = b.created || (b as any).created_at || (b as any).id || '';
+                        const dateA = a.timestamp || a.created || (a as any).created_at || (a as any).id || '';
+                        const dateB = b.timestamp || b.created || (b as any).created_at || (b as any).id || '';
                         return dateB.localeCompare(dateA);
                     });
                     setLogs(sorted as any);
@@ -224,8 +224,8 @@ export default function Logs() {
                                 <tbody className="divide-y">
                                     {(filteredLogs || []).map((log: any) => {
                                         if (!log) return null;
-                                        // PocketBase records have 'created' as a system field string
-                                        const rawDate = log.created || log.created_at || (log.expand?.user_id?.created);
+                                        // Use manual timestamp as primary, fallback to system fields
+                                        const rawDate = log.timestamp || log.created || log.created_at || (log.expand?.user_id?.created) || '';
                                         return (
                                             <tr key={log.id || Math.random().toString()} className="hover:bg-muted/50 transition-colors">
                                                 <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">

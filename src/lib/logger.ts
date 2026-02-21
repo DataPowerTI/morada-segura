@@ -25,6 +25,7 @@ export async function logActivity({
             target_collection: targetCollection,
             target_id: targetId,
             description,
+            timestamp: new Date().toISOString(),
         });
     } catch (error) {
         console.error('Error creating activity log:', error);
