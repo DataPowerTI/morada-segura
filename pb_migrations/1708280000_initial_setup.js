@@ -3,8 +3,7 @@ migrate((app) => {
     // 1. Update users collection
     const users = app.findCollectionByNameOrId("users");
 
-    // Add fields using the generic SchemaField style if namespaces fail
-    // or try using constructors directly which are usually global
+    // Attempting to add fields using global constructors
     users.fields.add(new SelectField({
         name: "role",
         values: ["admin", "operator"]
@@ -15,6 +14,17 @@ migrate((app) => {
     }));
 
     app.save(users);
+
+    // Helper to create collection
+    const createColl = (name, fields, rules = {}) => {
+        const collection = new Collection({
+            name: name,
+            type: "base",
+            fields: fields,
+            ...rules
+        });
+        return app.save(collection);
+    };
 
     // 2. Create condominium collection
     const condominium = new Collection({
@@ -61,7 +71,7 @@ migrate((app) => {
             new TextField({ name: "model", required: true }),
             new TextField({ name: "color" }),
             new SelectField({ name: "type", values: ["car", "motorcycle", "truck"] }),
-            new RelationField({ name: "unit_id", id: "unit_rel_id", required: true, collectionId: units.id, maxSelect: 1 }),
+            new RelationField({ name: "unit_id", required: true, collectionId: units.id, maxSelect: 1 }),
         ],
         listRule: "", viewRule: "", createRule: "@request.auth.id != ''", updateRule: "@request.auth.id != ''", deleteRule: "role = 'admin'",
     });
