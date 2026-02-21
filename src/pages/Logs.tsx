@@ -118,6 +118,13 @@ export default function Logs() {
                         <SelectItem value="DELETE">Exclusão</SelectItem>
                     </SelectContent>
                 </Select>
+                <Button variant="outline" onClick={fetchLogs} disabled={loading}>
+                    Atualizar
+                </Button>
+            </div>
+
+            <div className="mb-4 text-sm text-muted-foreground">
+                Exibindo {filteredLogs.length} de {logs.length} registros no total
             </div>
 
             <Card>
