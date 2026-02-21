@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { History as HistoryIcon, Search, Filter, User } from 'lucide-react';
 import { pb } from '@/integrations/pocketbase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
