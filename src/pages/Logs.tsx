@@ -49,51 +49,68 @@ export default function Logs() {
     async function fetchLogs() {
         setLoading(true);
         try {
-            console.log('Tentando buscar logs com expand e sort...');
+            console.log('Tentando busca completa...');
             const records = await pb.collection('system_logs').getFullList({
                 sort: '-created',
                 expand: 'user_id',
             });
             setLogs(records as any);
         } catch (error: any) {
-            console.error('Falha 1 (expand+sort):', error);
-
-            // Tentativa 2: Sem expand
+            console.error('Falha na busca completa, tentando simplificada...');
             try {
-                console.log('Tentando buscar logs apenas com sort...');
+                // Tenta sem expand mas com sort
                 const records = await pb.collection('system_logs').getFullList({
                     sort: '-created',
                 });
                 setLogs(records as any);
-                toast({
-                    title: 'Aviso de Visualização',
-                    description: 'Logs carregados parcialmente. Erro ao buscar nomes de usuários.',
-                });
-                return;
-            } catch (error2: any) {
-                console.error('Falha 2 (sort):', error2);
-
-                // Tentativa 3: Sem nada (apenas a lista crua)
+                resolveUsersManually(records);
+            } catch (error2) {
+                console.error('Falha no sort, carregando dados brutos...');
                 try {
-                    console.log('Tentando buscar logs sem parâmetros...');
+                    // Tenta o mais básico possível
                     const records = await pb.collection('system_logs').getFullList();
-                    setLogs(records as any);
-                    toast({
-                        title: 'Aviso de Diagnóstico',
-                        description: 'Logs carregados sem ordenação devido a erro no servidor.',
+                    // Ordena manualmente no frontend já que o banco não quer
+                    const sorted = [...records].sort((a, b) => {
+                        const dateA = a.created || (a as any).created_at || (a as any).id || '';
+                        const dateB = b.created || (b as any).created_at || (b as any).id || '';
+                        return dateB.localeCompare(dateA);
                     });
-                    return;
+                    setLogs(sorted as any);
+                    resolveUsersManually(sorted);
                 } catch (error3: any) {
-                    console.error('Falha 3 (crua):', error3);
                     toast({
                         variant: 'destructive',
-                        title: 'Erro de Banco de Dados',
-                        description: `Não foi possível acessar a tabela de logs (Erro ${error3.status}). Verifique se ela foi criada no PocketBase.`,
+                        title: 'Erro Crítico',
+                        description: 'Não foi possível acessar a tabela de logs.',
                     });
                 }
             }
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function resolveUsersManually(records: any[]) {
+        const uniqueUserIds = [...new Set(records.map(r => r.user_id).filter(Boolean))];
+        if (uniqueUserIds.length === 0) return;
+
+        try {
+            // Tenta buscar os nomes dos usuários envolvidos
+            // Como as regras de visualização do users agora são públicas, isso deve funcionar
+            const map: Record<string, { name: string, email: string }> = {};
+
+            // Busca em lotes de 10 para evitar URLs gigantes
+            for (let i = 0; i < uniqueUserIds.length; i += 10) {
+                const chunk = uniqueUserIds.slice(i, i + 10);
+                const filter = chunk.map(id => `id="${id}"`).join(' || ');
+                const users = await pb.collection('users').getFullList({ filter });
+                users.forEach((u: any) => {
+                    map[u.id] = { name: u.name, email: u.email };
+                });
+            }
+            setUsersMap(map);
+        } catch (e) {
+            console.error('Erro ao resolver nomes de usuários manualmente:', e);
         }
     }
 
