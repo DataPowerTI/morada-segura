@@ -234,10 +234,12 @@ export default function Logs() {
                                                 <td className="py-3 pr-4 text-foreground">
                                                     <div className="flex items-center gap-2">
                                                         <User className="h-3 w-3 text-muted-foreground" />
-                                                        <span className="font-mono text-[10px] sm:text-sm">
+                                                        <span className="font-medium">
                                                             {log.expand?.user_id?.name ||
+                                                                usersMap[log.user_id]?.name ||
                                                                 log.expand?.user_id?.email ||
-                                                                (log as any).user_id ||
+                                                                usersMap[log.user_id]?.email ||
+                                                                log.user_id ||
                                                                 'Usuário desconhecido'}
                                                         </span>
                                                     </div>
