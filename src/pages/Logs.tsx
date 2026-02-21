@@ -193,14 +193,14 @@ export default function Logs() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                    {(filteredLogs || []).map((log) => {
+                                    {(filteredLogs || []).map((log: any) => {
                                         if (!log) return null;
-                                        // PocketBase records have 'created' as a system field
-                                        const createdDate = (log as any).created || (log as any).created_at;
+                                        // PocketBase records have 'created' as a system field string
+                                        const rawDate = log.created || log.created_at || (log.expand?.user_id?.created);
                                         return (
                                             <tr key={log.id || Math.random().toString()} className="hover:bg-muted/50 transition-colors">
                                                 <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">
-                                                    {formatDate(createdDate)}
+                                                    {formatDate(rawDate)}
                                                 </td>
                                                 <td className="py-3 pr-4 text-foreground">
                                                     <div className="flex items-center gap-2">
