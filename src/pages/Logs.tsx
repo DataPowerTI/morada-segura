@@ -47,13 +47,33 @@ export default function Logs() {
     async function fetchLogs() {
         setLoading(true);
         try {
+            // Tentativa inicial com expand
             const records = await pb.collection('system_logs').getFullList({
                 sort: '-created',
                 expand: 'user_id',
             });
             setLogs(records as any);
         } catch (error: any) {
-            console.error('Error fetching logs:', error);
+            console.error('Error fetching logs with expand:', error);
+
+            // Se falhou com expand (erro 400), tenta sem o expand para pelo menos mostrar os logs
+            if (error.status === 400) {
+                try {
+                    const records = await pb.collection('system_logs').getFullList({
+                        sort: '-created',
+                    });
+                    setLogs(records as any);
+                    toast({
+                        variant: 'default',
+                        title: 'Aviso',
+                        description: 'Logs carregados sem informações de usuário devido a restrições de permissão.',
+                    });
+                    return;
+                } catch (innerError: any) {
+                    console.error('Error fetching logs without expand:', innerError);
+                }
+            }
+
             toast({
                 variant: 'destructive',
                 title: 'Erro ao carregar logs',
