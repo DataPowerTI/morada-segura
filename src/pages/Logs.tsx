@@ -192,18 +192,20 @@ export default function Logs() {
                                         <th className="pb-3 font-semibold">Descrição</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y text-slate-100">
+                                <tbody className="divide-y">
                                     {(filteredLogs || []).map((log) => {
                                         if (!log) return null;
+                                        // PocketBase records have 'created' as a system field
+                                        const createdDate = (log as any).created || (log as any).created_at;
                                         return (
                                             <tr key={log.id || Math.random().toString()} className="hover:bg-muted/50 transition-colors">
                                                 <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">
-                                                    {formatDate(log.created)}
+                                                    {formatDate(createdDate)}
                                                 </td>
-                                                <td className="py-3 pr-4">
+                                                <td className="py-3 pr-4 text-foreground">
                                                     <div className="flex items-center gap-2">
                                                         <User className="h-3 w-3 text-muted-foreground" />
-                                                        <span>
+                                                        <span className="font-mono text-[10px] sm:text-sm">
                                                             {log.expand?.user_id?.name ||
                                                                 log.expand?.user_id?.email ||
                                                                 (log as any).user_id ||
@@ -214,7 +216,7 @@ export default function Logs() {
                                                 <td className="py-3 pr-4">
                                                     {getActionBadge(log.action || 'S/A')}
                                                 </td>
-                                                <td className="py-3">
+                                                <td className="py-3 text-foreground">
                                                     {log.description || 'Sem descrição'}
                                                 </td>
                                             </tr>
