@@ -109,8 +109,16 @@ export default function Logs() {
         return matchesSearch && matchesAction;
     }) : [];
 
-    const formatDate = (dateString: string) => {
-        return format(new Date(dateString), "dd/MM/yyyy HH:mm:ss", { locale: ptBR });
+    const formatDate = (dateString: any) => {
+        if (!dateString) return 'Data N/A';
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'Data Inválida';
+            return format(date, "dd/MM/yyyy HH:mm:ss", { locale: ptBR });
+        } catch (e) {
+            console.error('Erro ao formatar data:', e);
+            return 'Erro na Data';
+        }
     };
 
     const getActionBadge = (action: string) => {
@@ -185,25 +193,33 @@ export default function Logs() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y text-slate-100">
-                                    {filteredLogs.map((log) => (
-                                        <tr key={log.id} className="hover:bg-muted/50 transition-colors">
-                                            <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">
-                                                {formatDate(log.created)}
-                                            </td>
-                                            <td className="py-3 pr-4">
-                                                <div className="flex items-center gap-2">
-                                                    <User className="h-3 w-3 text-muted-foreground" />
-                                                    <span>{log.expand?.user_id?.name || log.expand?.user_id?.email || 'N/A'}</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-3 pr-4">
-                                                {getActionBadge(log.action)}
-                                            </td>
-                                            <td className="py-3">
-                                                {log.description}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {(filteredLogs || []).map((log) => {
+                                        if (!log) return null;
+                                        return (
+                                            <tr key={log.id || Math.random().toString()} className="hover:bg-muted/50 transition-colors">
+                                                <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">
+                                                    {formatDate(log.created)}
+                                                </td>
+                                                <td className="py-3 pr-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <User className="h-3 w-3 text-muted-foreground" />
+                                                        <span>
+                                                            {log.expand?.user_id?.name ||
+                                                                log.expand?.user_id?.email ||
+                                                                (log as any).user_id ||
+                                                                'Usuário desconhecido'}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 pr-4">
+                                                    {getActionBadge(log.action || 'S/A')}
+                                                </td>
+                                                <td className="py-3">
+                                                    {log.description || 'Sem descrição'}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
