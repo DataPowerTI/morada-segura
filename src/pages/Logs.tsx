@@ -95,19 +95,19 @@ export default function Logs() {
         }
     }
 
-    const filteredLogs = logs.filter((log) => {
+    const filteredLogs = Array.isArray(logs) ? logs.filter((log) => {
         const search = searchTerm.toLowerCase();
 
-        const descriptionMatch = log.description.toLowerCase().includes(search);
-        const userNameMatch = log.expand?.user_id?.name?.toLowerCase().includes(search) || false;
-        const userEmailMatch = log.expand?.user_id?.email?.toLowerCase().includes(search) || false;
+        const descriptionMatch = log.description?.toLowerCase()?.includes(search) || false;
+        const userNameMatch = log.expand?.user_id?.name?.toLowerCase()?.includes(search) || false;
+        const userEmailMatch = log.expand?.user_id?.email?.toLowerCase()?.includes(search) || false;
 
         const matchesSearch = descriptionMatch || userNameMatch || userEmailMatch;
 
         const matchesAction = actionFilter === 'all' || log.action === actionFilter;
 
         return matchesSearch && matchesAction;
-    });
+    }) : [];
 
     const formatDate = (dateString: string) => {
         return format(new Date(dateString), "dd/MM/yyyy HH:mm:ss", { locale: ptBR });
