@@ -5,7 +5,17 @@ import PocketBase, { BaseAuthStore } from 'pocketbase';
 class SessionAuthStore extends BaseAuthStore {
   constructor() {
     super();
+    this.clearLegacyStorage();
     this.loadFromStorage();
+    console.log("Morada Segura: SessionAuthStore initialized (v2)");
+  }
+
+  // Explicitly clear standard PocketBase localStorage to avoid conflicts
+  private clearLegacyStorage() {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('pocketbase_auth');
+      window.localStorage.removeItem('pb_auth');
+    }
   }
 
   save(token: string, model: any) {
@@ -19,18 +29,26 @@ class SessionAuthStore extends BaseAuthStore {
   }
 
   private loadFromStorage() {
-    const data = window.sessionStorage.getItem('pb_auth');
-    if (data) {
-      const parsed = JSON.parse(data);
-      this.save(parsed.token, parsed.model);
+    if (typeof window !== 'undefined') {
+      const data = window.sessionStorage.getItem('pb_auth');
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          this.save(parsed.token, parsed.model);
+        } catch (e) {
+          console.error("Error loading session:", e);
+        }
+      }
     }
   }
 
   private saveToStorage() {
-    window.sessionStorage.setItem('pb_auth', JSON.stringify({
-      token: this.token,
-      model: this.model,
-    }));
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('pb_auth', JSON.stringify({
+        token: this.token,
+        model: this.model,
+      }));
+    }
   }
 }
 
