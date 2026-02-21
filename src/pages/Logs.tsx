@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useToast } from '@/hooks/use-toast';
 
 interface LogEntry {
     id: string;
@@ -36,29 +37,40 @@ export default function Logs() {
     const [searchTerm, setSearchTerm] = useState('');
     const [actionFilter, setActionFilter] = useState('all');
 
+    const { toast } = useToast();
+
     useEffect(() => {
         fetchLogs();
     }, []);
 
     async function fetchLogs() {
+        setLoading(true);
         try {
             const records = await pb.collection('system_logs').getFullList({
                 sort: '-created',
                 expand: 'user_id',
             });
             setLogs(records as any);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching logs:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Erro ao carregar logs',
+                description: error.message || 'Verifique se a coleção system_logs existe no banco.',
+            });
         } finally {
             setLoading(false);
         }
     }
 
     const filteredLogs = logs.filter((log) => {
-        const matchesSearch =
-            log.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            log.expand?.user_id?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            log.expand?.user_id?.email?.toLowerCase().includes(searchTerm.toLowerCase());
+        const search = searchTerm.toLowerCase();
+
+        const descriptionMatch = log.description.toLowerCase().includes(search);
+        const userNameMatch = log.expand?.user_id?.name?.toLowerCase().includes(search) || false;
+        const userEmailMatch = log.expand?.user_id?.email?.toLowerCase().includes(search) || false;
+
+        const matchesSearch = descriptionMatch || userNameMatch || userEmailMatch;
 
         const matchesAction = actionFilter === 'all' || log.action === actionFilter;
 
