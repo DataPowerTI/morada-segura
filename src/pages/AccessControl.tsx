@@ -31,6 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { logActivity } from '@/lib/logger';
 
 const providerSchema = z.object({
   name: z.string().min(2, 'Nome é obrigatório').max(200, 'Nome muito longo'),
@@ -185,7 +186,18 @@ export default function AccessControl() {
         formData.append('photo', file);
       }
 
-      await pb.collection('service_providers').create(formData);
+      const record = await pb.collection('service_providers').create(formData);
+
+      if (user) {
+        const unit = units.find(u => u.id === data.unit_id);
+        await logActivity({
+          userId: user.id,
+          action: 'CREATE',
+          targetCollection: 'service_providers',
+          targetId: record.id,
+          description: `Registrou entrada de prestador de serviço: ${data.name}${data.company ? ` (${data.company})` : ''}${unit ? ` para a unidade ${unit.unit_number}` : ''}.`,
+        });
+      }
 
       toast({
         title: 'Entrada registrada',
@@ -212,6 +224,16 @@ export default function AccessControl() {
       await pb.collection('service_providers').update(provider.id, {
         exit_time: new Date().toISOString(),
       });
+
+      if (user) {
+        await logActivity({
+          userId: user.id,
+          action: 'UPDATE',
+          targetCollection: 'service_providers',
+          targetId: provider.id,
+          description: `Registrou saída de prestador de serviço: ${provider.name}.`,
+        });
+      }
 
       toast({
         title: 'Saída registrada',

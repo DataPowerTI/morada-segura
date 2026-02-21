@@ -13,6 +13,7 @@ import AccessControl from "./pages/AccessControl";
 import RentalGuests from "./pages/RentalGuests";
 import Parcels from "./pages/Parcels";
 import Users from "./pages/Users";
+import Logs from "./pages/Logs";
 import Settings from "./pages/Settings";
 import PartyRoom from "./pages/PartyRoom";
 import NotFound from "./pages/NotFound";
@@ -59,13 +60,13 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
-      <Route 
-        path="/alterar-senha" 
+      <Route
+        path="/alterar-senha"
         element={
-          !user ? <Navigate to="/auth" replace /> : 
-          !mustChangePassword ? <Navigate to="/" replace /> : 
-          <ChangePassword />
-        } 
+          !user ? <Navigate to="/auth" replace /> :
+            !mustChangePassword ? <Navigate to="/" replace /> :
+              <ChangePassword />
+        }
       />
       <Route
         path="/"
@@ -82,22 +83,22 @@ function AppRoutes() {
             <Units />
           </ProtectedRoute>
         }
-        />
-        <Route
-          path="/veiculos"
-          element={
-            <ProtectedRoute adminOnly>
-              <Vehicles />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/portaria"
-          element={
-            <ProtectedRoute>
-              <AccessControl />
-            </ProtectedRoute>
-          }
+      />
+      <Route
+        path="/veiculos"
+        element={
+          <ProtectedRoute adminOnly>
+            <Vehicles />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/portaria"
+        element={
+          <ProtectedRoute>
+            <AccessControl />
+          </ProtectedRoute>
+        }
       />
       <Route
         path="/hospedes"
@@ -120,6 +121,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute adminOnly>
             <Users />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/logs"
+        element={
+          <ProtectedRoute adminOnly>
+            <Logs />
           </ProtectedRoute>
         }
       />

@@ -46,6 +46,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { logActivity } from '@/lib/logger';
 
 const parcelSchema = z.object({
   unit_id: z.string().min(1, 'Selecione uma unidade'),
@@ -199,7 +200,18 @@ export default function Parcels() {
         formData.append('photo', file);
       }
 
-      await pb.collection('parcels').create(formData);
+      const record = await pb.collection('parcels').create(formData);
+
+      if (user) {
+        const unit = units.find(u => u.id === data.unit_id);
+        await logActivity({
+          userId: user.id,
+          action: 'CREATE',
+          targetCollection: 'parcels',
+          targetId: record.id,
+          description: `Registrou nova encomenda para unidade ${unit?.unit_number}${unit?.block ? ` (Bloco ${unit.block})` : ''}. Descrição: ${data.description}.`,
+        });
+      }
 
       toast({
         title: 'Encomenda registrada',
@@ -227,6 +239,16 @@ export default function Parcels() {
         status: 'collected',
         collected_at: new Date().toISOString(),
       });
+
+      if (user) {
+        await logActivity({
+          userId: user.id,
+          action: 'UPDATE',
+          targetCollection: 'parcels',
+          targetId: parcel.id,
+          description: `Confirmou a entrega da encomenda "${parcel.description}" para a unidade ${parcel.unit.unit_number}.`,
+        });
+      }
 
       toast({
         title: 'Entrega confirmada',

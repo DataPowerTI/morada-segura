@@ -10,7 +10,8 @@ import {
   Car,
   Settings,
   Home,
-  PartyPopper
+  PartyPopper,
+  History as HistoryIcon
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ const menuItems = [
   { icon: Package, label: 'Encomendas', path: '/encomendas', adminOnly: false },
   { icon: PartyPopper, label: 'Salão de Festas', path: '/salao-festas', adminOnly: false },
   { icon: Users, label: 'Usuários', path: '/usuarios', adminOnly: true },
+  { icon: HistoryIcon, label: 'Logs de Atividade', path: '/logs', adminOnly: true },
   { icon: Settings, label: 'Configurações', path: '/configuracoes', adminOnly: false },
 ];
 

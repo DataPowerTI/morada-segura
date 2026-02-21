@@ -30,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { logActivity } from '@/lib/logger';
 
 const guestSchema = z.object({
   name: z.string().min(2, 'Nome é obrigatório').max(200, 'Nome muito longo'),
@@ -187,7 +188,18 @@ export default function RentalGuests() {
         formData.append('photo', file);
       }
 
-      await pb.collection('rental_guests').create(formData);
+      const record = await pb.collection('rental_guests').create(formData);
+
+      if (user) {
+        const unit = units.find(u => u.id === data.unit_id);
+        await logActivity({
+          userId: user.id,
+          action: 'CREATE',
+          targetCollection: 'rental_guests',
+          targetId: record.id,
+          description: `Registrou entrada de hóspede: ${data.name}${data.vehicle_plate ? ` (Placa: ${data.vehicle_plate})` : ''} para a unidade ${unit?.unit_number}${unit?.block ? ` (Bloco ${unit.block})` : ''}.`,
+        });
+      }
 
       toast({
         title: 'Hóspede registrado',
@@ -214,6 +226,16 @@ export default function RentalGuests() {
       await pb.collection('rental_guests').update(guest.id, {
         exit_time: new Date().toISOString(),
       });
+
+      if (user) {
+        await logActivity({
+          userId: user.id,
+          action: 'UPDATE',
+          targetCollection: 'rental_guests',
+          targetId: guest.id,
+          description: `Registrou saída de hóspede: ${guest.name}.`,
+        });
+      }
 
       toast({
         title: 'Saída registrada',

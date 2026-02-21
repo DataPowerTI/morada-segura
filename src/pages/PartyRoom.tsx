@@ -16,6 +16,7 @@ import { ptBR } from 'date-fns/locale';
 import { CalendarDays, Clock, Trash2, PartyPopper, Users, Info } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useQuery } from '@tanstack/react-query';
+import { logActivity } from '@/lib/logger';
 
 type BookingPeriod = 'full_day' | 'morning' | 'afternoon';
 
@@ -208,13 +209,24 @@ export default function PartyRoom() {
     setSubmitting(true);
 
     try {
-      await pb.collection('party_room_bookings').create({
+      const record = await pb.collection('party_room_bookings').create({
         booking_date: format(selectedDate, 'yyyy-MM-dd'),
         unit_id: selectedUnit,
         period: selectedPeriod,
         party_room_id: selectedPartyRoom,
         created_by: user?.id,
       });
+
+      if (user) {
+        const unit = units.find(u => u.id === selectedUnit);
+        await logActivity({
+          userId: user.id,
+          action: 'CREATE',
+          targetCollection: 'party_room_bookings',
+          targetId: record.id,
+          description: `Realizou agendamento do ${getPartyRoomLabel(selectedPartyRoom)} para a unidade ${unit?.unit_number} em ${format(selectedDate, 'dd/MM/yyyy')} (${periodLabels[selectedPeriod]}).`,
+        });
+      }
 
       toast({
         title: 'Sucesso',
@@ -243,6 +255,16 @@ export default function PartyRoom() {
 
     try {
       await pb.collection('party_room_bookings').delete(bookingToDelete.id);
+
+      if (user) {
+        await logActivity({
+          userId: user.id,
+          action: 'DELETE',
+          targetCollection: 'party_room_bookings',
+          targetId: bookingToDelete.id,
+          description: `Cancelou agendamento do ${getPartyRoomLabel(bookingToDelete.party_room_id || 1)} para a unidade ${bookingToDelete.unit?.unit_number} em ${format(new Date(bookingToDelete.booking_date + 'T00:00:00'), 'dd/MM/yyyy')}.`,
+        });
+      }
 
       toast({
         title: 'Sucesso',
