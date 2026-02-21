@@ -3,7 +3,6 @@ migrate((app) => {
     // 1. Update users collection
     const users = app.findCollectionByNameOrId("users");
 
-    // Attempting to add fields using global constructors
     users.fields.add(new SelectField({
         name: "role",
         values: ["admin", "operator"]
@@ -14,17 +13,6 @@ migrate((app) => {
     }));
 
     app.save(users);
-
-    // Helper to create collection
-    const createColl = (name, fields, rules = {}) => {
-        const collection = new Collection({
-            name: name,
-            type: "base",
-            fields: fields,
-            ...rules
-        });
-        return app.save(collection);
-    };
 
     // 2. Create condominium collection
     const condominium = new Collection({
@@ -44,7 +32,11 @@ migrate((app) => {
             new NumberField({ name: "party_room_count" }),
             new TextField({ name: "party_room_naming" }),
         ],
-        listRule: "", viewRule: "", createRule: "role = 'admin'", updateRule: "role = 'admin'", deleteRule: "role = 'admin'",
+        listRule: "",
+        viewRule: "",
+        createRule: "@request.auth.role = 'admin'",
+        updateRule: "@request.auth.role = 'admin'",
+        deleteRule: "@request.auth.role = 'admin'",
     });
     app.save(condominium);
 
@@ -58,7 +50,11 @@ migrate((app) => {
             new TextField({ name: "resident_name", required: true }),
             new TextField({ name: "phone_number" }),
         ],
-        listRule: "", viewRule: "", createRule: "@request.auth.id != ''", updateRule: "@request.auth.id != ''", deleteRule: "role = 'admin'",
+        listRule: "",
+        viewRule: "",
+        createRule: "@request.auth.id != ''",
+        updateRule: "@request.auth.id != ''",
+        deleteRule: "@request.auth.role = 'admin'",
     });
     app.save(units);
 
@@ -73,7 +69,11 @@ migrate((app) => {
             new SelectField({ name: "type", values: ["car", "motorcycle", "truck"] }),
             new RelationField({ name: "unit_id", required: true, collectionId: units.id, maxSelect: 1 }),
         ],
-        listRule: "", viewRule: "", createRule: "@request.auth.id != ''", updateRule: "@request.auth.id != ''", deleteRule: "role = 'admin'",
+        listRule: "",
+        viewRule: "",
+        createRule: "@request.auth.id != ''",
+        updateRule: "@request.auth.id != ''",
+        deleteRule: "@request.auth.role = 'admin'",
     });
     app.save(vehicles);
 
@@ -91,7 +91,11 @@ migrate((app) => {
             new RelationField({ name: "unit_id", collectionId: units.id, maxSelect: 1 }),
             new RelationField({ name: "created_by", collectionId: users.id, maxSelect: 1 }),
         ],
-        listRule: "", viewRule: "", createRule: "@request.auth.id != ''", updateRule: "@request.auth.id != ''", deleteRule: "role = 'admin'",
+        listRule: "",
+        viewRule: "",
+        createRule: "@request.auth.id != ''",
+        updateRule: "@request.auth.id != ''",
+        deleteRule: "@request.auth.role = 'admin'",
     });
     app.save(service_providers);
 
@@ -109,7 +113,11 @@ migrate((app) => {
             new RelationField({ name: "unit_id", required: true, collectionId: units.id, maxSelect: 1 }),
             new RelationField({ name: "created_by", collectionId: users.id, maxSelect: 1 }),
         ],
-        listRule: "", viewRule: "", createRule: "@request.auth.id != ''", updateRule: "@request.auth.id != ''", deleteRule: "role = 'admin'",
+        listRule: "",
+        viewRule: "",
+        createRule: "@request.auth.id != ''",
+        updateRule: "@request.auth.id != ''",
+        deleteRule: "@request.auth.role = 'admin'",
     });
     app.save(parcels);
 
@@ -127,7 +135,11 @@ migrate((app) => {
             new RelationField({ name: "unit_id", required: true, collectionId: units.id, maxSelect: 1 }),
             new RelationField({ name: "created_by", collectionId: users.id, maxSelect: 1 }),
         ],
-        listRule: "", viewRule: "", createRule: "@request.auth.id != ''", updateRule: "@request.auth.id != ''", deleteRule: "role = 'admin'",
+        listRule: "",
+        viewRule: "",
+        createRule: "@request.auth.id != ''",
+        updateRule: "@request.auth.id != ''",
+        deleteRule: "@request.auth.role = 'admin'",
     });
     app.save(rental_guests);
 
@@ -142,7 +154,11 @@ migrate((app) => {
             new RelationField({ name: "unit_id", required: true, collectionId: units.id, maxSelect: 1 }),
             new RelationField({ name: "created_by", collectionId: users.id, maxSelect: 1 }),
         ],
-        listRule: "", viewRule: "", createRule: "@request.auth.id != ''", updateRule: "@request.auth.id != ''", deleteRule: "role = 'admin'",
+        listRule: "",
+        viewRule: "",
+        createRule: "@request.auth.id != ''",
+        updateRule: "@request.auth.id != ''",
+        deleteRule: "@request.auth.role = 'admin'",
     });
     app.save(party_room_bookings);
 
