@@ -52,9 +52,8 @@ class SessionAuthStore extends BaseAuthStore {
   }
 }
 
-const PB_URL = import.meta.env.PROD
-  ? window.location.origin
-  : (import.meta.env.VITE_POCKETBASE_URL || 'http://localhost:8090');
+const PB_URL = import.meta.env.VITE_POCKETBASE_URL ||
+  (import.meta.env.PROD ? window.location.origin : 'http://localhost:8090');
 
 export const pb = new PocketBase(PB_URL, new SessionAuthStore());
 

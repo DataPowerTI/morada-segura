@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { History, Search, Filter, User } from 'lucide-react';
+import { History as HistoryIcon, Search, Filter, User } from 'lucide-react';
 import { pb } from '@/integrations/pocketbase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
@@ -111,7 +110,7 @@ export default function Logs() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <History className="h-5 w-5 text-primary" />
+                        <HistoryIcon className="h-5 w-5 text-primary" />
                         Movimentações Recentes
                     </CardTitle>
                 </CardHeader>
