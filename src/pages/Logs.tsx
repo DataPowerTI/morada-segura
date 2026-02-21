@@ -47,38 +47,49 @@ export default function Logs() {
     async function fetchLogs() {
         setLoading(true);
         try {
-            // Tentativa inicial com expand
+            console.log('Tentando buscar logs com expand e sort...');
             const records = await pb.collection('system_logs').getFullList({
                 sort: '-created',
                 expand: 'user_id',
             });
             setLogs(records as any);
         } catch (error: any) {
-            console.error('Error fetching logs with expand:', error);
+            console.error('Falha 1 (expand+sort):', error);
 
-            // Se falhou com expand (erro 400), tenta sem o expand para pelo menos mostrar os logs
-            if (error.status === 400) {
+            // Tentativa 2: Sem expand
+            try {
+                console.log('Tentando buscar logs apenas com sort...');
+                const records = await pb.collection('system_logs').getFullList({
+                    sort: '-created',
+                });
+                setLogs(records as any);
+                toast({
+                    title: 'Aviso de Visualização',
+                    description: 'Logs carregados parcialmente. Erro ao buscar nomes de usuários.',
+                });
+                return;
+            } catch (error2: any) {
+                console.error('Falha 2 (sort):', error2);
+
+                // Tentativa 3: Sem nada (apenas a lista crua)
                 try {
-                    const records = await pb.collection('system_logs').getFullList({
-                        sort: '-created',
-                    });
+                    console.log('Tentando buscar logs sem parâmetros...');
+                    const records = await pb.collection('system_logs').getFullList();
                     setLogs(records as any);
                     toast({
-                        variant: 'default',
-                        title: 'Aviso',
-                        description: 'Logs carregados sem informações de usuário devido a restrições de permissão.',
+                        title: 'Aviso de Diagnóstico',
+                        description: 'Logs carregados sem ordenação devido a erro no servidor.',
                     });
                     return;
-                } catch (innerError: any) {
-                    console.error('Error fetching logs without expand:', innerError);
+                } catch (error3: any) {
+                    console.error('Falha 3 (crua):', error3);
+                    toast({
+                        variant: 'destructive',
+                        title: 'Erro de Banco de Dados',
+                        description: `Não foi possível acessar a tabela de logs (Erro ${error3.status}). Verifique se ela foi criada no PocketBase.`,
+                    });
                 }
             }
-
-            toast({
-                variant: 'destructive',
-                title: 'Erro ao carregar logs',
-                description: error.message || 'Verifique se a coleção system_logs existe no banco.',
-            });
         } finally {
             setLoading(false);
         }
