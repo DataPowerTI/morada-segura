@@ -37,6 +37,7 @@ export default function Logs() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [actionFilter, setActionFilter] = useState('all');
+    const [showDebug, setShowDebug] = useState(false);
 
     const { toast } = useToast();
 
@@ -161,7 +162,17 @@ export default function Logs() {
                 <Button variant="outline" onClick={fetchLogs} disabled={loading}>
                     Atualizar
                 </Button>
+                <Button variant="ghost" onClick={() => setShowDebug(!showDebug)} className="text-[10px]">
+                    {showDebug ? 'Esconder Debug' : 'Ver Dados Brutos'}
+                </Button>
             </div>
+
+            {showDebug && logs.length > 0 && (
+                <div className="mb-6 p-4 bg-slate-900 text-green-400 font-mono text-xs rounded overflow-auto max-h-60">
+                    <p className="mb-2 font-bold border-b border-green-800 pb-1">Diagnóstico do Primeiro Registro:</p>
+                    <pre>{JSON.stringify(logs[0], null, 2)}</pre>
+                </div>
+            )}
 
             <div className="mb-4 text-sm text-muted-foreground">
                 Exibindo {filteredLogs.length} de {logs.length} registros no total
