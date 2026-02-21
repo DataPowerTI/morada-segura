@@ -34,6 +34,7 @@ interface LogEntry {
 
 export default function Logs() {
     const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [usersMap, setUsersMap] = useState<Record<string, { name: string, email: string }>>({});
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [actionFilter, setActionFilter] = useState('all');
