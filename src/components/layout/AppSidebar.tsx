@@ -24,8 +24,8 @@ import { firstRow } from '@/lib/postgrest';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/', adminOnly: false },
-  { icon: Building2, label: 'Unidades', path: '/unidades', adminOnly: true },
-  { icon: Car, label: 'Veículos', path: '/veiculos', adminOnly: true },
+  { icon: Building2, label: 'Unidades', path: '/unidades', adminOnly: false },
+  { icon: Car, label: 'Veículos', path: '/veiculos', adminOnly: false },
   { icon: ShieldCheck, label: 'Portaria', path: '/portaria', adminOnly: false },
   { icon: Home, label: 'Hóspedes', path: '/hospedes', adminOnly: false },
   { icon: Package, label: 'Encomendas', path: '/encomendas', adminOnly: false },

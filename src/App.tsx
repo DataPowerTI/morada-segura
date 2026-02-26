@@ -79,7 +79,7 @@ function AppRoutes() {
       <Route
         path="/unidades"
         element={
-          <ProtectedRoute adminOnly>
+          <ProtectedRoute>
             <Units />
           </ProtectedRoute>
         }
@@ -87,7 +87,7 @@ function AppRoutes() {
       <Route
         path="/veiculos"
         element={
-          <ProtectedRoute adminOnly>
+          <ProtectedRoute>
             <Vehicles />
           </ProtectedRoute>
         }
