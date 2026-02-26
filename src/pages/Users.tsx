@@ -142,6 +142,7 @@ export default function Users() {
         passwordConfirm: data.password,
         name: data.name,
         role: data.role,
+        must_change_password: true,
         emailVisibility: true,
       });
 

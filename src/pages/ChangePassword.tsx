@@ -46,6 +46,9 @@ export default function ChangePassword() {
         must_change_password: false,
       });
 
+      // Refresh the local auth state so the app knows the password has been changed
+      await pb.collection('users').authRefresh();
+
       toast({
         title: 'Senha alterada!',
         description: 'Sua senha foi alterada com sucesso.',
