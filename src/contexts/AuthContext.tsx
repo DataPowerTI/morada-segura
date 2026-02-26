@@ -12,6 +12,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   requestPasswordReset: (email: string) => Promise<{ error: Error | null }>;
+  confirmPasswordReset: (token: string, password: string, passwordConfirm: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
   refreshMustChangePassword: () => Promise<void>;
@@ -82,6 +83,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const confirmPasswordReset = async (token: string, password: string, passwordConfirm: string) => {
+    try {
+      await pb.collection('users').confirmPasswordReset(token, password, passwordConfirm);
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
+  };
+
   const signOut = async () => {
     pb.authStore.clear();
     setUser(null);
@@ -97,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signUp,
     requestPasswordReset,
+    confirmPasswordReset,
     signOut,
     isAdmin: userRole === 'admin',
     refreshMustChangePassword,

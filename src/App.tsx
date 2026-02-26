@@ -16,6 +16,7 @@ import Users from "./pages/Users";
 import Logs from "./pages/Logs";
 import Settings from "./pages/Settings";
 import PartyRoom from "./pages/PartyRoom";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -68,6 +69,7 @@ function AppRoutes() {
               <ChangePassword />
         }
       />
+      <Route path="/redefinir-senha" element={<ResetPassword />} />
       <Route
         path="/"
         element={
