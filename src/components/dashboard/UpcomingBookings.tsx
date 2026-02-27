@@ -49,7 +49,14 @@ export function UpcomingBookings() {
   });
 
   const formatDate = (dateString: string) => {
-    return format(new Date(dateString + 'T12:00:00'), "dd/MM (EEEE)", { locale: ptBR });
+    if (!dateString) return 'Data N/A';
+    try {
+      const date = new Date(dateString + 'T12:00:00');
+      if (isNaN(date.getTime())) return 'Data Inválida';
+      return format(date, "dd/MM (EEEE)", { locale: ptBR });
+    } catch (e) {
+      return 'Erro na Data';
+    }
   };
 
   return (

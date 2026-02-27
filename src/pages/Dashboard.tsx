@@ -113,11 +113,25 @@ export default function Dashboard() {
   }, []);
 
   const formatTime = (dateString: string) => {
-    return format(new Date(dateString), "HH:mm", { locale: ptBR });
+    if (!dateString) return '--:--';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '--:--';
+      return format(date, "HH:mm", { locale: ptBR });
+    } catch (e) {
+      return '--:--';
+    }
   };
 
   const formatDate = (dateString: string) => {
-    return format(new Date(dateString), "dd/MM 'às' HH:mm", { locale: ptBR });
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Data Inválida';
+      return format(date, "dd/MM 'às' HH:mm", { locale: ptBR });
+    } catch (e) {
+      return 'Erro na Data';
+    }
   };
 
   return (
