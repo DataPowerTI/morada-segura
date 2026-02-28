@@ -130,6 +130,20 @@ export default function PartyRoom() {
     }
   };
 
+  const formatDate = (dateString: string, formatPattern: string = "dd/MM/yyyy") => {
+    if (!dateString) return 'Data N/A';
+    try {
+      // Check if it's already a date-only string like YYYY-MM-DD
+      const finalString = dateString.includes('T') ? dateString : dateString + 'T12:00:00';
+      const date = new Date(finalString);
+      if (isNaN(date.getTime())) return 'Data Inválida';
+      return format(date, formatPattern, { locale: ptBR });
+    } catch (e) {
+      console.error('Erro ao formatar data:', e);
+      return 'Erro na Data';
+    }
+  };
+
   const fetchUnits = async () => {
     try {
       const records = await pb.collection('units').getFullList({
@@ -224,7 +238,7 @@ export default function PartyRoom() {
           action: 'CREATE',
           targetCollection: 'party_room_bookings',
           targetId: record.id,
-          description: `Realizou agendamento do ${getPartyRoomLabel(selectedPartyRoom)} para a unidade ${unit?.unit_number} em ${format(selectedDate, 'dd/MM/yyyy')} (${periodLabels[selectedPeriod]}).`,
+          description: `Realizou agendamento do ${getPartyRoomLabel(selectedPartyRoom)} para a unidade ${unit?.unit_number} em ${formatDate(format(selectedDate, 'yyyy-MM-dd'))} (${periodLabels[selectedPeriod]}).`,
         });
       }
 
@@ -262,7 +276,7 @@ export default function PartyRoom() {
           action: 'DELETE',
           targetCollection: 'party_room_bookings',
           targetId: bookingToDelete.id,
-          description: `Cancelou agendamento do ${getPartyRoomLabel(bookingToDelete.party_room_id || 1)} para a unidade ${bookingToDelete.unit?.unit_number} em ${format(new Date(bookingToDelete.booking_date + 'T00:00:00'), 'dd/MM/yyyy')}.`,
+          description: `Cancelou agendamento do ${getPartyRoomLabel(bookingToDelete.party_room_id || 1)} para a unidade ${bookingToDelete.unit?.unit_number} em ${formatDate(bookingToDelete.booking_date)}.`,
         });
       }
 
@@ -416,7 +430,7 @@ export default function PartyRoom() {
               <div className="space-y-4 pt-4 border-t">
                 <div className="text-center">
                   <p className="font-medium">
-                    {format(selectedDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    {formatDate(format(selectedDate, 'yyyy-MM-dd'), "EEEE, d 'de' MMMM 'de' yyyy")}
                   </p>
                   {selectedDateBookings.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2 justify-center">
@@ -541,7 +555,7 @@ export default function PartyRoom() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium">
-                          {format(new Date(booking.booking_date + 'T00:00:00'), "d 'de' MMMM", { locale: ptBR })}
+                          {formatDate(booking.booking_date, "d 'de' MMMM")}
                         </p>
                         <Badge className={periodColors[booking.period]}>
                           {periodLabels[booking.period]}
