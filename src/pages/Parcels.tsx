@@ -288,7 +288,15 @@ export default function Parcels() {
   }
 
   const formatDateTime = (dateString: string) => {
-    return format(new Date(dateString), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+    if (!dateString) return 'Data N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Data Inválida';
+      return format(date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+    } catch (e) {
+      console.error('Erro ao formatar data:', e);
+      return 'Erro na Data';
+    }
   };
 
   const getUnitLabel = (unit: Unit) => {
