@@ -51,10 +51,19 @@ export function UpcomingBookings() {
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Data N/A';
     try {
-      const date = new Date(dateString + 'T12:00:00');
+      // Normalize PocketBase dates (replace space with T for cross-browser safety)
+      let normalizedString = dateString.replace(' ', 'T');
+
+      // If it's just YYYY-MM-DD (length 10), add time for local interpretation stability
+      if (normalizedString.length === 10) {
+        normalizedString += 'T12:00:00';
+      }
+
+      const date = new Date(normalizedString);
       if (isNaN(date.getTime())) return 'Data Inválida';
       return format(date, "dd/MM (EEEE)", { locale: ptBR });
     } catch (e) {
+      console.error('Erro ao formatar data:', e);
       return 'Erro na Data';
     }
   };

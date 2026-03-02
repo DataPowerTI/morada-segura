@@ -134,9 +134,15 @@ export default function PartyRoom() {
   const formatDate = (dateString: string, formatPattern: string = "dd/MM/yyyy") => {
     if (!dateString) return 'Data N/A';
     try {
-      // Check if it's already a date-only string like YYYY-MM-DD
-      const finalString = dateString.includes('T') ? dateString : dateString + 'T12:00:00';
-      const date = new Date(finalString);
+      // Normalize PocketBase dates (replace space with T for cross-browser safety)
+      let normalizedString = dateString.replace(' ', 'T');
+
+      // If it's just YYYY-MM-DD (length 10), add time for local interpretation stability
+      if (normalizedString.length === 10) {
+        normalizedString += 'T12:00:00';
+      }
+
+      const date = new Date(normalizedString);
       if (isNaN(date.getTime())) return 'Data Inválida';
       return format(date, formatPattern, { locale: ptBR });
     } catch (e) {
@@ -301,7 +307,12 @@ export default function PartyRoom() {
   };
 
   const upcomingBookings = bookings.filter(b => {
-    const bookingDate = new Date(b.booking_date + 'T00:00:00');
+    // Robust date creation for filtering
+    let normalizedString = b.booking_date.replace(' ', 'T');
+    if (normalizedString.length === 10) {
+      normalizedString += 'T00:00:00';
+    }
+    const bookingDate = new Date(normalizedString);
     return !isBefore(bookingDate, startOfDay(new Date()));
   });
 
