@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { UnitSelect } from '@/components/UnitSelect';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { pb } from '@/integrations/pocketbase/client';
@@ -476,20 +477,11 @@ export default function PartyRoom() {
                     {/* Unit Selection */}
                     <div className="space-y-2">
                       <Label>Unidade</Label>
-                      <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione a unidade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {units.map((unit) => (
-                            <SelectItem key={unit.id} value={unit.id}>
-                              {unit.unit_number}
-                              {unit.block && ` - ${unit.block}`}
-                              {' '}({unit.resident_name})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <UnitSelect
+                        units={units}
+                        value={selectedUnit}
+                        onValueChange={setSelectedUnit}
+                      />
                     </div>
 
                     {/* Period Selection */}

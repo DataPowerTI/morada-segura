@@ -27,19 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { UnitSelect } from '@/components/UnitSelect';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -80,7 +68,6 @@ export default function Parcels() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [unitOpen, setUnitOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'collected'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
@@ -342,48 +329,11 @@ export default function Parcels() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               {/* Unit Selection */}
               <div className="space-y-2">
-                <Label>Unidade *</Label>
-                <Controller
-                  name="unit_id"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Popover open={unitOpen} onOpenChange={setUnitOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={unitOpen}
-                          className="w-full justify-between"
-                        >
-                          {field.value
-                            ? getUnitLabel(units.find((u) => u.id === field.value)!)
-                            : 'Selecionar unidade...'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-full p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder="Buscar unidade..." />
-                          <CommandList>
-                            <CommandEmpty>Nenhuma unidade encontrada.</CommandEmpty>
-                            <CommandGroup>
-                              {units.map((unit) => (
-                                <CommandItem
-                                  key={unit.id}
-                                  value={getUnitLabel(unit)}
-                                  onSelect={() => {
-                                    field.onChange(unit.id);
-                                    setUnitOpen(false);
-                                  }}
-                                >
-                                  {getUnitLabel(unit)}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  )}
+                <Label htmlFor="unit_id">Unidade de Destino *</Label>
+                <UnitSelect
+                  units={units}
+                  value={form.watch('unit_id')}
+                  onValueChange={(value) => form.setValue('unit_id', value)}
                 />
                 {form.formState.errors.unit_id && (
                   <p className="text-sm text-destructive">{form.formState.errors.unit_id.message}</p>

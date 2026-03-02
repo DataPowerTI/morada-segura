@@ -19,13 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { UnitSelect } from '@/components/UnitSelect';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -324,21 +318,11 @@ export default function AccessControl() {
 
               <div className="space-y-2">
                 <Label htmlFor="unit_id">Unidade de Atendimento</Label>
-                <Select
+                <UnitSelect
+                  units={units}
                   value={form.watch('unit_id') || ''}
                   onValueChange={(value) => form.setValue('unit_id', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a unidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {units.map((unit) => (
-                      <SelectItem key={unit.id} value={unit.id}>
-                        {unit.block ? `${unit.block} - ` : ''}Unidade {unit.unit_number} ({unit.resident_name})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
 
               <div className="flex justify-end gap-2">

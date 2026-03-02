@@ -34,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { UnitSelect } from '@/components/UnitSelect';
 import {
   Select,
   SelectContent,
@@ -285,21 +286,11 @@ export default function Vehicles() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="unit_id">Unidade *</Label>
-                <Select
+                <UnitSelect
+                  units={units}
                   value={form.watch('unit_id')}
                   onValueChange={(value) => form.setValue('unit_id', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma unidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {units.map((unit) => (
-                      <SelectItem key={unit.id} value={unit.id}>
-                        {unit.block ? `Bloco ${unit.block} - ` : ''}Unidade {unit.unit_number} ({unit.resident_name})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
                 {form.formState.errors.unit_id && (
                   <p className="text-sm text-destructive">
                     {form.formState.errors.unit_id.message}

@@ -19,13 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { UnitSelect } from '@/components/UnitSelect';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -319,22 +313,12 @@ export default function RentalGuests() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="unit_id">Unidade de Hospedagem *</Label>
-                <Select
+                <Label htmlFor="unit_id">Unidade *</Label>
+                <UnitSelect
+                  units={units}
                   value={form.watch('unit_id')}
                   onValueChange={(value) => form.setValue('unit_id', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a unidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {units.map((unit) => (
-                      <SelectItem key={unit.id} value={unit.id}>
-                        {unit.block ? `${unit.unit_number} - Bloco ${unit.block}` : unit.unit_number} ({unit.resident_name})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
                 {form.formState.errors.unit_id && (
                   <p className="text-sm text-destructive">{form.formState.errors.unit_id.message}</p>
                 )}
