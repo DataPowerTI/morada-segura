@@ -51,19 +51,34 @@ export function UpcomingBookings() {
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Data N/A';
     try {
-      // Normalize PocketBase dates (replace space with T for cross-browser safety)
-      let normalizedString = dateString.replace(' ', 'T');
+      // Standardize PocketBase date format (replace space with T for cross-browser safety)
+      const normalized = dateString.replace(' ', 'T');
 
-      // If it's just YYYY-MM-DD (length 10), add time for local interpretation stability
-      if (normalizedString.length === 10) {
-        normalizedString += 'T12:00:00';
+      // Try parsing with new Date() after normalization
+      let date = new Date(normalized);
+
+      // If it's just a date without time (length 10 like YYYY-MM-DD),
+      // force 12:00:00 to avoid UTC/Local flip-flop which can shift the day.
+      if (normalized.length === 10) {
+        date = new Date(normalized + 'T12:00:00');
       }
 
-      const date = new Date(normalizedString);
-      if (isNaN(date.getTime())) return 'Data Inválida';
+      // If still invalid, try manual extraction for YYYY-MM-DD
+      if (isNaN(date.getTime())) {
+        const matches = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (matches) {
+          date = new Date(parseInt(matches[1]), parseInt(matches[2]) - 1, parseInt(matches[3]), 12, 0, 0);
+        }
+      }
+
+      if (isNaN(date.getTime())) {
+        console.warn(`[WARN] UpcomingBookings: Failed to parse date string: "${dateString}"`);
+        return 'Data Inválida';
+      }
+
       return format(date, "dd/MM (EEEE)", { locale: ptBR });
     } catch (e) {
-      console.error('Erro ao formatar data:', e);
+      console.error('[ERROR] UpcomingBookings: formatDate exception:', e, 'for string:', dateString);
       return 'Erro na Data';
     }
   };
