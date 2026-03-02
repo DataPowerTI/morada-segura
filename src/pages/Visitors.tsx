@@ -19,6 +19,13 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
     Table,
     TableBody,
     TableCell,
@@ -46,9 +53,17 @@ const visitorSchema = z.object({
     name: z.string().min(2, 'Nome é obrigatório').max(200, 'Nome muito longo'),
     document: z.string().max(20, 'Documento muito longo').optional(),
     phone: z.string().max(20, 'Telefone muito longo').optional(),
+    unit_id: z.string().min(1, 'Unidade é obrigatória'),
 });
 
 type VisitorFormData = z.infer<typeof visitorSchema>;
+
+interface Unit {
+    id: string;
+    unit_number: string;
+    block: string | null;
+    resident_name: string;
+}
 
 interface Visitor {
     id: string;
@@ -56,12 +71,19 @@ interface Visitor {
     document: string | null;
     phone: string | null;
     photo_url: string | null;
+    unit_id: string | null;
     entry_time: string;
+    unit?: {
+        unit_number: string;
+        block: string | null;
+        resident_name: string;
+    };
 }
 
 export default function Visitors() {
     const [visitors, setVisitors] = useState<Visitor[]>([]);
     const [filteredVisitors, setFilteredVisitors] = useState<Visitor[]>([]);
+    const [units, setUnits] = useState<Unit[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -90,11 +112,13 @@ export default function Visitors() {
             name: '',
             document: '',
             phone: '',
+            unit_id: '',
         },
     });
 
     useEffect(() => {
         fetchVisitors();
+        fetchUnits();
     }, []);
 
     useEffect(() => {
@@ -110,6 +134,7 @@ export default function Visitors() {
         try {
             const records = await pb.collection('visitors').getFullList({
                 sort: '-entry_time',
+                expand: 'unit_id',
             });
 
             const formattedVisitors = records.map((record: any) => ({
@@ -119,6 +144,12 @@ export default function Visitors() {
                 phone: record.phone,
                 photo_url: record.photo ? getFileUrl('visitors', record.id, record.photo) : null,
                 entry_time: record.entry_time,
+                unit_id: record.unit_id,
+                unit: record.expand?.unit_id ? {
+                    unit_number: record.expand.unit_id.unit_number,
+                    block: record.expand.unit_id.block,
+                    resident_name: record.expand.unit_id.resident_name,
+                } : undefined
             }));
 
             setVisitors(formattedVisitors);
@@ -132,6 +163,22 @@ export default function Visitors() {
             });
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function fetchUnits() {
+        try {
+            const records = await pb.collection('units').getFullList({
+                sort: 'unit_number',
+            });
+            setUnits(records as Unit[]);
+        } catch (error) {
+            console.error('Error fetching units:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Erro',
+                description: 'Não foi possível carregar as unidades.',
+            });
         }
     }
 
@@ -159,6 +206,7 @@ export default function Visitors() {
             formData.append('name', data.name);
             formData.append('document', data.document || '');
             formData.append('phone', data.phone || '');
+            formData.append('unit_id', data.unit_id);
             formData.append('entry_time', new Date().toISOString());
 
             if (capturedPhoto) {
@@ -282,6 +330,28 @@ export default function Visitors() {
                                 )}
                             </div>
 
+                            <div className="space-y-2">
+                                <Label htmlFor="unit_id">Unidade de Destino *</Label>
+                                <Select
+                                    value={form.watch('unit_id')}
+                                    onValueChange={(value) => form.setValue('unit_id', value)}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione a unidade" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {units.map((unit) => (
+                                            <SelectItem key={unit.id} value={unit.id}>
+                                                {unit.block ? `${unit.unit_number} - Bloco ${unit.block}` : unit.unit_number} ({unit.resident_name})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {form.formState.errors.unit_id && (
+                                    <p className="text-sm text-destructive">{form.formState.errors.unit_id.message}</p>
+                                )}
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="document">RG/CPF</Label>
@@ -322,6 +392,7 @@ export default function Visitors() {
                         <TableRow>
                             <TableHead className="w-[80px]">Foto</TableHead>
                             <TableHead>Nome</TableHead>
+                            <TableHead>Unidade</TableHead>
                             <TableHead>Documento</TableHead>
                             <TableHead>Telefone</TableHead>
                             <TableHead>Data Cadastro</TableHead>
@@ -331,13 +402,13 @@ export default function Visitors() {
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8">
+                                <TableCell colSpan={7} className="text-center py-8">
                                     Carregando...
                                 </TableCell>
                             </TableRow>
                         ) : filteredVisitors.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                                     Nenhum visitante encontrado
                                 </TableCell>
                             </TableRow>
@@ -354,6 +425,19 @@ export default function Visitors() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="font-medium">{visitor.name}</TableCell>
+                                    <TableCell>
+                                        {visitor.unit ? (
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">
+                                                    {visitor.unit.unit_number}
+                                                    {visitor.unit.block ? ` - Bloco ${visitor.unit.block}` : ''}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">{visitor.unit.resident_name}</span>
+                                            </div>
+                                        ) : (
+                                            '-'
+                                        )}
+                                    </TableCell>
                                     <TableCell>{visitor.document || '-'}</TableCell>
                                     <TableCell>
                                         {visitor.phone ? (

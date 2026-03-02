@@ -23,6 +23,7 @@ migrate((app) => {
     addField(new TextField({ name: "document" }));
     addField(new TextField({ name: "phone" }));
     addField(new DateField({ name: "entry_time", required: true }));
+    addField(new RelationField({ name: "unit_id", collectionId: "units", maxSelect: 1 }));
     addField(new FileField({
         name: "photo",
         maxSelect: 1,
