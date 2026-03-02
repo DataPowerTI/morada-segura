@@ -56,7 +56,7 @@ interface Visitor {
     document: string | null;
     phone: string | null;
     photo_url: string | null;
-    created: string;
+    entry_time: string;
 }
 
 export default function Visitors() {
@@ -109,7 +109,7 @@ export default function Visitors() {
     async function fetchVisitors() {
         try {
             const records = await pb.collection('visitors').getFullList({
-                sort: '-created',
+                sort: '-entry_time',
             });
 
             const formattedVisitors = records.map((record: any) => ({
@@ -118,7 +118,7 @@ export default function Visitors() {
                 document: record.document,
                 phone: record.phone,
                 photo_url: record.photo ? getFileUrl('visitors', record.id, record.photo) : null,
-                created: record.created,
+                entry_time: record.entry_time,
             }));
 
             setVisitors(formattedVisitors);
@@ -159,6 +159,7 @@ export default function Visitors() {
             formData.append('name', data.name);
             formData.append('document', data.document || '');
             formData.append('phone', data.phone || '');
+            formData.append('entry_time', new Date().toISOString());
 
             if (capturedPhoto) {
                 const file = await dataUrlToFile(capturedPhoto, 'visitor.jpg');
@@ -365,7 +366,7 @@ export default function Visitors() {
                                         )}
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground">
-                                        {formatDateTime(visitor.created)}
+                                        {formatDateTime(visitor.entry_time)}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Button
