@@ -17,6 +17,7 @@ import Logs from "./pages/Logs";
 import Settings from "./pages/Settings";
 import PartyRoom from "./pages/PartyRoom";
 import Visitors from "./pages/Visitors";
+import Occurrences from "./pages/Occurrences";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
@@ -156,6 +157,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Visitors />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ocorrencias"
+        element={
+          <ProtectedRoute>
+            <Occurrences />
           </ProtectedRoute>
         }
       />

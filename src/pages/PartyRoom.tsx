@@ -110,7 +110,8 @@ export default function PartyRoom() {
         period: record.period as BookingPeriod,
         unit_id: record.unit_id,
         created_at: record.created,
-        party_room_id: record.party_room_id,
+        // Normalize party_room_id to number (PocketBase stores as TextField string)
+        party_room_id: record.party_room_id ? parseInt(String(record.party_room_id), 10) : 1,
         unit: record.expand?.unit_id ? {
           unit_number: record.expand.unit_id.unit_number,
           block: record.expand.unit_id.block,
@@ -475,33 +476,41 @@ export default function PartyRoom() {
                   )}
                 </div>
 
+                {/* Party Room Selection - always shown when roomCount > 1, regardless of availability */}
+                {roomCount > 1 && (
+                  <div className="space-y-2">
+                    <Label>Salão</Label>
+                    <Select
+                      value={String(selectedPartyRoom)}
+                      onValueChange={(v) => {
+                        setSelectedPartyRoom(parseInt(v));
+                        setSelectedPeriod('full_day');
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o salão" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {partyRoomOptions.map((room) => (
+                          <SelectItem key={room.id} value={String(room.id)}>
+                            {room.label}
+                            {getAvailablePeriods(selectedDate!, room.id).length === 0
+                              ? ' (Ocupado)'
+                              : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 {availablePeriods.length === 0 ? (
                   <p className="text-center text-destructive text-sm">
-                    Esta data está totalmente ocupada.
+                    Este salão está totalmente ocupado nesta data.
+                    {roomCount > 1 && ' Selecione outro salão.'}
                   </p>
                 ) : (
                   <>
-                    {/* Party Room Selection */}
-                    {roomCount > 1 && (
-                      <div className="space-y-2">
-                        <Label>Salão</Label>
-                        <Select
-                          value={String(selectedPartyRoom)}
-                          onValueChange={(v) => setSelectedPartyRoom(parseInt(v))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o salão" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {partyRoomOptions.map((room) => (
-                              <SelectItem key={room.id} value={String(room.id)}>
-                                {room.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
 
                     {/* Unit Selection */}
                     <div className="space-y-2">
@@ -593,19 +602,17 @@ export default function PartyRoom() {
                         {' '}• {booking.unit?.resident_name}
                       </p>
                     </div>
-                    {isAdmin && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => {
-                          setBookingToDelete(booking);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        setBookingToDelete(booking);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 ))}
               </div>

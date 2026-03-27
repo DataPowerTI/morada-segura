@@ -11,7 +11,8 @@ import {
   Settings,
   Home,
   PartyPopper,
-  History as HistoryIcon
+  History as HistoryIcon,
+  AlertCircle
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ const menuItems = [
   { icon: Home, label: 'Hóspedes', path: '/hospedes', adminOnly: false },
   { icon: Package, label: 'Encomendas', path: '/encomendas', adminOnly: false },
   { icon: Users, label: 'Visitantes', path: '/visitantes', adminOnly: false },
+  { icon: AlertCircle, label: 'Ocorrências', path: '/ocorrencias', adminOnly: false },
   { icon: PartyPopper, label: 'Salão de Festas', path: '/salao-festas', adminOnly: false },
   { icon: Users, label: 'Usuários', path: '/usuarios', adminOnly: true },
   { icon: HistoryIcon, label: 'Logs de Atividade', path: '/logs', adminOnly: true },

@@ -1,5 +1,5 @@
 import { RefObject } from 'react';
-import { Camera, SwitchCamera, X } from 'lucide-react';
+import { Camera, SwitchCamera, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FacingMode } from '@/hooks/use-camera';
 
@@ -14,6 +14,7 @@ interface CameraCaptureProps {
   onSwitchCamera: () => void;
   onResetPhoto: () => void;
   onRemovePhoto?: () => void;
+  onAcceptPhoto?: (photo: string) => void;
 }
 
 export function CameraCapture({
@@ -27,6 +28,7 @@ export function CameraCapture({
   onSwitchCamera,
   onResetPhoto,
   onRemovePhoto,
+  onAcceptPhoto,
 }: CameraCaptureProps) {
   return (
     <div className="space-y-2">
@@ -95,6 +97,20 @@ export function CameraCapture({
               >
                 Nova Foto
               </Button>
+              {onAcceptPhoto && (
+                <Button
+                  type="button"
+                  variant="default"
+                  onClick={() => {
+                    onAcceptPhoto(capturedPhoto);
+                    onResetPhoto();
+                    onStartCamera();
+                  }}
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Adicionar Foto
+                </Button>
+              )}
               {onRemovePhoto && (
                 <Button
                   type="button"

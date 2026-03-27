@@ -20,6 +20,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { UnitSelect } from '@/components/UnitSelect';
+import { PersonAutocomplete } from '@/components/PersonAutocomplete';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -64,6 +65,7 @@ export default function RentalGuests() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const {
@@ -169,7 +171,38 @@ export default function RentalGuests() {
   async function onSubmit(data: GuestFormData) {
     setIsSubmitting(true);
     try {
+      // Handle the unified `people` registry
+      let personId = selectedPersonId;
+      const personData = new FormData();
+      personData.append('name', data.name);
+      if (data.document) personData.append('document', data.document);
+      if (data.vehicle_plate) personData.append('vehicle_plate', data.vehicle_plate);
+
+      if (capturedPhoto) {
+        const file = await dataUrlToFile(capturedPhoto, 'photo.jpg');
+        personData.append('photo', file);
+      }
+
+      if (personId) {
+        await pb.collection('people').update(personId, personData);
+      } else {
+        try {
+            const existing = await pb.collection('people').getFirstListItem(`name="${data.name}"`);
+            if (existing) {
+                personId = existing.id;
+                await pb.collection('people').update(personId, personData);
+            } else {
+                const newPerson = await pb.collection('people').create(personData);
+                personId = newPerson.id;
+            }
+        } catch(e) {
+             const newPerson = await pb.collection('people').create(personData);
+             personId = newPerson.id;
+        }
+      }
+
       const formData = new FormData();
+      formData.append('person_id', personId);
       formData.append('name', data.name);
       formData.append('document', data.document || '');
       formData.append('vehicle_plate', data.vehicle_plate || '');
@@ -203,6 +236,7 @@ export default function RentalGuests() {
       setDialogOpen(false);
       form.reset();
       setCapturedPhoto(null);
+      setSelectedPersonId(null);
       fetchGuests();
     } catch (error: any) {
       toast({
@@ -276,6 +310,7 @@ export default function RentalGuests() {
             if (!open) {
               stopCamera();
               setCapturedPhoto(null);
+              setSelectedPersonId(null);
               form.reset();
             }
           }}
@@ -306,7 +341,20 @@ export default function RentalGuests() {
 
               <div className="space-y-2">
                 <Label htmlFor="name">Nome do Hóspede *</Label>
-                <Input id="name" placeholder="Nome completo" {...form.register('name')} />
+                <PersonAutocomplete
+                    value={form.watch('name')}
+                    onChange={(val) => form.setValue('name', val, { shouldValidate: true })}
+                    onSelectPerson={(person) => {
+                        if (person) {
+                            form.setValue('name', person.name, { shouldValidate: true });
+                            if (person.document) form.setValue('document', person.document);
+                            if (person.vehicle_plate) form.setValue('vehicle_plate', person.vehicle_plate);
+                            setSelectedPersonId(person.id);
+                        } else {
+                            setSelectedPersonId(null);
+                        }
+                    }}
+                />
                 {form.formState.errors.name && (
                   <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
                 )}

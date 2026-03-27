@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Building2, Package, ShieldCheck, Car, Users, CalendarDays } from 'lucide-react';
+import { Building2, Package, ShieldCheck, Car, Users, CalendarDays, AlertTriangle } from 'lucide-react';
 import { pb } from '@/integrations/pocketbase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
@@ -39,6 +39,18 @@ interface ActiveProvider {
   entry_time: string;
 }
 
+interface RecentOccurrence {
+  id: string;
+  title: string;
+  status: 'pending' | 'in_progress' | 'resolved';
+  created: string;
+  unit?: {
+    unit_number: string;
+    block: string | null;
+    resident_name: string;
+  };
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalUnits: 0,
@@ -49,6 +61,7 @@ export default function Dashboard() {
   });
   const [recentParcels, setRecentParcels] = useState<RecentParcel[]>([]);
   const [activeProviders, setActiveProviders] = useState<ActiveProvider[]>([]);
+  const [recentOccurrences, setRecentOccurrences] = useState<RecentOccurrence[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -101,6 +114,25 @@ export default function Dashboard() {
           name: record.name,
           company: record.company,
           entry_time: record.entry_time,
+        })));
+
+        // Fetch recent pending occurrences
+        const occurrencesRecords = await pb.collection('occurrences').getList(1, 5, {
+          filter: 'status="pending"',
+          sort: '-created',
+          expand: 'unit_id',
+        });
+
+        setRecentOccurrences(occurrencesRecords.items.map((record: any) => ({
+          id: record.id,
+          title: record.title,
+          status: record.status,
+          created: record.created,
+          unit: record.expand?.unit_id ? {
+            unit_number: record.expand.unit_id.unit_number,
+            block: record.expand.unit_id.block,
+            resident_name: record.expand.unit_id.resident_name,
+          } : undefined
         })));
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -262,6 +294,44 @@ export default function Dashboard() {
                         Entrada: {formatTime(provider.entry_time)}
                       </p>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Pending Occurrences */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              Ocorrências Pendentes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {recentOccurrences.length === 0 ? (
+              <p className="text-muted-foreground text-sm text-center py-8">
+                Nenhuma ocorrência pendente
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {recentOccurrences.map((occurrence) => (
+                  <div
+                    key={occurrence.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 data-table-row"
+                  >
+                    <div className="space-y-1">
+                      <p className="font-medium text-sm">{occurrence.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {occurrence.unit?.block ? `Bloco ${occurrence.unit.block} - ` : ''}
+                        Unidade {occurrence.unit?.unit_number} • {occurrence.unit?.resident_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Aberta em {formatDate(occurrence.created)}
+                      </p>
+                    </div>
+                    <StatusBadge status="pending" />
                   </div>
                 ))}
               </div>

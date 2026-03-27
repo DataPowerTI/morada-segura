@@ -19,6 +19,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { UnitSelect } from '@/components/UnitSelect';
+import { PersonAutocomplete } from '@/components/PersonAutocomplete';
 import {
     Table,
     TableBody,
@@ -83,6 +84,7 @@ export default function Visitors() {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [deleteVisitor, setDeleteVisitor] = useState<Visitor | null>(null);
+    const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
     const { toast } = useToast();
     const { user } = useAuth();
 
@@ -196,8 +198,42 @@ export default function Visitors() {
     async function onSubmit(data: VisitorFormData) {
         setIsSubmitting(true);
         try {
+            // First, handle the unified `people` registry
+            let personId = selectedPersonId;
+            const personData = new FormData();
+            personData.append('name', data.name);
+            if (data.document) personData.append('document', data.document);
+            if (data.phone) personData.append('phone', data.phone);
+
+            if (capturedPhoto) {
+                const file = await dataUrlToFile(capturedPhoto, 'photo.jpg');
+                personData.append('photo', file);
+            }
+
+            if (personId) {
+                // Update existing person (updates info and photo if provided)
+                await pb.collection('people').update(personId, personData);
+            } else {
+                // Check if a person with exactly this name already exists without being selected
+                try {
+                    const existing = await pb.collection('people').getFirstListItem(`name="${data.name}"`);
+                    if (existing) {
+                        personId = existing.id;
+                        await pb.collection('people').update(personId, personData);
+                    } else {
+                        const newPerson = await pb.collection('people').create(personData);
+                        personId = newPerson.id;
+                    }
+                } catch(e) { // not found
+                     const newPerson = await pb.collection('people').create(personData);
+                     personId = newPerson.id;
+                }
+            }
+
+            // Now create the access record (visitor)
             const formData = new FormData();
-            formData.append('name', data.name);
+            formData.append('person_id', personId);
+            formData.append('name', data.name); // keep for backward compat
             formData.append('document', data.document || '');
             formData.append('phone', data.phone || '');
             formData.append('unit_id', data.unit_id);
@@ -227,6 +263,7 @@ export default function Visitors() {
             setDialogOpen(false);
             form.reset();
             setCapturedPhoto(null);
+            setSelectedPersonId(null);
             fetchVisitors();
         } catch (error: any) {
             toast({
@@ -289,6 +326,7 @@ export default function Visitors() {
                         if (!open) {
                             stopCamera();
                             setCapturedPhoto(null);
+                            setSelectedPersonId(null);
                             form.reset();
                         }
                     }}
@@ -318,7 +356,20 @@ export default function Visitors() {
 
                             <div className="space-y-2">
                                 <Label htmlFor="name">Nome Completo *</Label>
-                                <Input id="name" placeholder="Nome do visitante" {...form.register('name')} />
+                                <PersonAutocomplete
+                                    value={form.watch('name')}
+                                    onChange={(val) => form.setValue('name', val, { shouldValidate: true })}
+                                    onSelectPerson={(person) => {
+                                        if (person) {
+                                            form.setValue('name', person.name, { shouldValidate: true });
+                                            if (person.document) form.setValue('document', person.document);
+                                            if (person.phone) form.setValue('phone', person.phone);
+                                            setSelectedPersonId(person.id);
+                                        } else {
+                                            setSelectedPersonId(null);
+                                        }
+                                    }}
+                                />
                                 {form.formState.errors.name && (
                                     <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
                                 )}

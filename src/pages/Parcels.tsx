@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useCamera } from '@/hooks/use-camera';
-import { Plus, Package, Check, Search, MessageCircle } from 'lucide-react';
+import { Plus, Package, Check, Search, MessageCircle, X } from 'lucide-react';
 import { z } from 'zod';
 import { CameraCapture } from '@/components/CameraCapture';
 import { useForm, Controller } from 'react-hook-form';
@@ -55,7 +55,7 @@ interface Parcel {
   id: string;
   protocol_number: string | null;
   description: string;
-  photo_url: string | null;
+  photo_urls: string[];
   status: 'pending' | 'collected';
   arrived_at: string;
   collected_at: string | null;
@@ -68,6 +68,7 @@ export default function Parcels() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [photos, setPhotos] = useState<string[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'collected'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
@@ -110,7 +111,7 @@ export default function Parcels() {
         id: record.id,
         protocol_number: record.protocol_number,
         description: record.description,
-        photo_url: record.photo ? getFileUrl('parcels', record.id, record.photo) : null,
+        photo_urls: (Array.isArray(record.photo) ? record.photo : (record.photo ? [record.photo] : [])).map((p: string) => getFileUrl('parcels', record.id, p)),
         status: record.status,
         arrived_at: record.arrived_at,
         collected_at: record.collected_at,
@@ -182,8 +183,13 @@ export default function Parcels() {
       formData.append('status', 'pending');
       formData.append('arrived_at', new Date().toISOString());
 
+      let finalPhotos = [...photos];
       if (capturedPhoto) {
-        const file = await dataUrlToFile(capturedPhoto, 'parcel.jpg');
+        finalPhotos.push(capturedPhoto);
+      }
+
+      for (let i = 0; i < finalPhotos.length; i++) {
+        const file = await dataUrlToFile(finalPhotos[i], `parcel_${i}.jpg`);
         formData.append('photo', file);
       }
 
@@ -208,6 +214,7 @@ export default function Parcels() {
       setDialogOpen(false);
       form.reset();
       setCapturedPhoto(null);
+      setPhotos([]);
       fetchParcels();
     } catch (error: any) {
       toast({
@@ -312,6 +319,7 @@ export default function Parcels() {
             if (!open) {
               stopCamera();
               setCapturedPhoto(null);
+              setPhotos([]);
               form.reset();
             }
           }}
@@ -355,18 +363,41 @@ export default function Parcels() {
                 )}
               </div>
 
-              {/* Camera/Photo Section */}
-              <CameraCapture
-                videoRef={videoRef}
-                canvasRef={canvasRef}
-                cameraActive={cameraActive}
-                capturedPhoto={capturedPhoto}
-                facingMode={facingMode}
-                onStartCamera={handleStartCamera}
-                onCapturePhoto={handleCapturePhoto}
-                onSwitchCamera={switchCamera}
-                onResetPhoto={resetPhoto}
-              />
+              <div className="space-y-4">
+                <CameraCapture
+                  videoRef={videoRef}
+                  canvasRef={canvasRef}
+                  cameraActive={cameraActive}
+                  capturedPhoto={capturedPhoto}
+                  facingMode={facingMode}
+                  onStartCamera={handleStartCamera}
+                  onCapturePhoto={handleCapturePhoto}
+                  onSwitchCamera={switchCamera}
+                  onResetPhoto={resetPhoto}
+                  onAcceptPhoto={(photo) => {
+                    setPhotos(prev => [...prev, photo]);
+                  }}
+                />
+
+                {photos.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {photos.map((photo, index) => (
+                      <div key={index} className="relative aspect-square border rounded-md overflow-hidden bg-muted">
+                        <img src={photo} alt={`Foto ${index + 1}`} className="w-full h-full object-cover" />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-1 right-1 h-6 w-6"
+                          onClick={() => setPhotos(photos.filter((_, i) => i !== index))}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
@@ -415,16 +446,21 @@ export default function Parcels() {
         ) : (
           filteredParcels.map((parcel) => (
             <Card key={parcel.id} className="overflow-hidden">
-              {parcel.photo_url && (
-                <div className="aspect-video bg-muted">
+              {parcel.photo_urls && parcel.photo_urls.length > 0 && (
+                <div className="relative aspect-video bg-muted">
                   <img
-                    src={parcel.photo_url}
+                    src={parcel.photo_urls[0]}
                     alt="Foto da encomenda"
                     className="w-full h-full object-cover"
                   />
+                  {parcel.photo_urls.length > 1 && (
+                    <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md font-medium">
+                      + {parcel.photo_urls.length - 1} fotos
+                    </div>
+                  )}
                 </div>
               )}
-              <CardContent className={cn("p-4", !parcel.photo_url && "pt-4")}>
+              <CardContent className={cn("p-4", (!parcel.photo_urls || parcel.photo_urls.length === 0) && "pt-4")}>
                 {parcel.protocol_number && (
                   <p className="text-xs font-mono text-primary mb-2">
                     Protocolo: {parcel.protocol_number}
