@@ -3,6 +3,7 @@ import { pb } from '@/integrations/pocketbase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
+import { bookingDateKey, parseBookingDate } from '@/lib/booking-date';
 import { ptBR } from 'date-fns/locale';
 
 interface Booking {
@@ -27,7 +28,7 @@ export function UpcomingBookings() {
   const { data: bookings = [] } = useQuery({
     queryKey: ['dashboard-upcoming-bookings'],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = bookingDateKey(new Date());
       const records = await pb.collection('party_room_bookings').getList(1, 5, {
         filter: `booking_date >= "${today}"`,
         sort: 'booking_date',
@@ -36,7 +37,7 @@ export function UpcomingBookings() {
 
       return records.items.map((record: any) => ({
         id: record.id,
-        booking_date: record.booking_date,
+        booking_date: bookingDateKey(record.booking_date),
         period: record.period as 'full_day' | 'morning' | 'afternoon',
         party_room_id: record.party_room_id,
         unit: record.expand?.unit_id ? {
@@ -51,30 +52,8 @@ export function UpcomingBookings() {
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Data N/A';
     try {
-      // Standardize PocketBase date format (replace space with T for cross-browser safety)
-      const normalized = dateString.replace(' ', 'T');
-
-      // Try parsing with new Date() after normalization
-      let date = new Date(normalized);
-
-      // If it's just a date without time (length 10 like YYYY-MM-DD),
-      // force 12:00:00 to avoid UTC/Local flip-flop which can shift the day.
-      if (normalized.length === 10) {
-        date = new Date(normalized + 'T12:00:00');
-      }
-
-      // If still invalid, try manual extraction for YYYY-MM-DD
-      if (isNaN(date.getTime())) {
-        const matches = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (matches) {
-          date = new Date(parseInt(matches[1]), parseInt(matches[2]) - 1, parseInt(matches[3]), 12, 0, 0);
-        }
-      }
-
-      if (isNaN(date.getTime())) {
-        console.warn(`[WARN] UpcomingBookings: Failed to parse date string: "${dateString}"`);
-        return 'Data Inválida';
-      }
+      const date = parseBookingDate(dateString);
+      if (Number.isNaN(date.getTime())) return 'Data Inválida';
 
       return format(date, "dd/MM (EEEE)", { locale: ptBR });
     } catch (e) {
