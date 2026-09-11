@@ -3,6 +3,7 @@ import { useCamera } from '@/hooks/use-camera';
 import { Plus, Package, Check, Search, MessageCircle, X } from 'lucide-react';
 import { z } from 'zod';
 import { CameraCapture } from '@/components/CameraCapture';
+import { ParcelPhotoGallery } from '@/components/ParcelPhotoGallery';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { pb, getFileUrl } from '@/integrations/pocketbase/client';
@@ -447,18 +448,7 @@ export default function Parcels() {
           filteredParcels.map((parcel) => (
             <Card key={parcel.id} className="overflow-hidden">
               {parcel.photo_urls && parcel.photo_urls.length > 0 && (
-                <div className="relative aspect-video bg-muted">
-                  <img
-                    src={parcel.photo_urls[0]}
-                    alt="Foto da encomenda"
-                    className="w-full h-full object-cover"
-                  />
-                  {parcel.photo_urls.length > 1 && (
-                    <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md font-medium">
-                      + {parcel.photo_urls.length - 1} fotos
-                    </div>
-                  )}
-                </div>
+                <ParcelPhotoGallery photos={parcel.photo_urls} description={parcel.description} />
               )}
               <CardContent className={cn("p-4", (!parcel.photo_urls || parcel.photo_urls.length === 0) && "pt-4")}>
                 {parcel.protocol_number && (
