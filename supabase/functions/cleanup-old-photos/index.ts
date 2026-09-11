@@ -17,14 +17,14 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Calculate date 60 days ago
-    const sixtyDaysAgo = new Date()
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60)
-    const cutoffDate = sixtyDaysAgo.toISOString()
+    // Calculate date 30 days ago
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    const cutoffDate = thirtyDaysAgo.toISOString()
 
     console.log(`[cleanup-old-photos] Starting cleanup for photos older than: ${cutoffDate}`)
 
-    // Find parcels with photos older than 60 days
+    // Find parcels with photos older than 30 days
     const { data: oldParcels, error: fetchError } = await supabase
       .from('parcels')
       .select('id, photo_url, arrived_at')
