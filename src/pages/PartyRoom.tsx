@@ -12,7 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import { pb } from '@/integrations/pocketbase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { firstRow } from '@/lib/postgrest';
-import { format, isSameDay, startOfDay, addDays, isBefore } from 'date-fns';
+import { format, startOfDay, isBefore } from 'date-fns';
+import { bookingDateKey, parseBookingDate } from '@/lib/booking-date';
 import { ptBR } from 'date-fns/locale';
 import { CalendarDays, Clock, Trash2, PartyPopper, Users, Info } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -106,7 +107,7 @@ export default function PartyRoom() {
 
       const typedData = records.map((record: any) => ({
         id: record.id,
-        booking_date: record.booking_date,
+        booking_date: bookingDateKey(record.booking_date),
         period: record.period as BookingPeriod,
         unit_id: record.unit_id,
         created_at: record.created,
@@ -135,33 +136,8 @@ export default function PartyRoom() {
   const formatDate = (dateString: string, formatPattern: string = "dd/MM/yyyy") => {
     if (!dateString) return 'Data N/A';
     try {
-      // DEBUG: Log the incoming date string to see what PB is really sending
-      // console.log(`[DEBUG] Parsing date: "${dateString}"`);
-
-      // Standardize PocketBase date format (replace space with T for cross-browser safety)
-      const normalized = dateString.replace(' ', 'T');
-
-      // Try parsing with new Date() after normalization
-      let date = new Date(normalized);
-
-      // If it's just a date without time (length 10 like YYYY-MM-DD),
-      // force 12:00:00 to avoid UTC/Local flip-flop which can shift the day.
-      if (normalized.length === 10) {
-        date = new Date(normalized + 'T12:00:00');
-      }
-
-      // If still invalid, try manual extraction for YYYY-MM-DD
-      if (isNaN(date.getTime())) {
-        const matches = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (matches) {
-          date = new Date(parseInt(matches[1]), parseInt(matches[2]) - 1, parseInt(matches[3]), 12, 0, 0);
-        }
-      }
-
-      if (isNaN(date.getTime())) {
-        console.warn(`[WARN] Failed to parse date string: "${dateString}"`);
-        return 'Data Inválida';
-      }
+      const date = parseBookingDate(dateString);
+      if (Number.isNaN(date.getTime())) return 'Data Inválida';
 
       return format(date, formatPattern, { locale: ptBR });
     } catch (e) {
@@ -187,7 +163,7 @@ export default function PartyRoom() {
   };
 
   const getAvailablePeriods = (date: Date, partyRoomId: number): BookingPeriod[] => {
-    const dateStr = format(date, 'yyyy-MM-dd');
+    const dateStr = bookingDateKey(date);
     const bookedPeriods = bookings
       .filter(b => b.booking_date === dateStr && b.party_room_id === partyRoomId)
       .map(b => b.period);
@@ -232,7 +208,7 @@ export default function PartyRoom() {
   };
 
   const hasBookingsOnDate = (date: Date): boolean => {
-    const dateStr = format(date, 'yyyy-MM-dd');
+    const dateStr = bookingDateKey(date);
     return bookings.some(b => b.booking_date === dateStr);
   };
 
@@ -246,11 +222,20 @@ export default function PartyRoom() {
       return;
     }
 
+    if (!getAvailablePeriods(selectedDate, selectedPartyRoom).includes(selectedPeriod)) {
+      toast({
+        title: 'Período indisponível',
+        description: 'Selecione um período disponível para esta data e salão.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       const record = await pb.collection('party_room_bookings').create({
-        booking_date: format(selectedDate, 'yyyy-MM-dd'),
+        booking_date: bookingDateKey(selectedDate),
         unit_id: selectedUnit,
         period: selectedPeriod,
         party_room_id: selectedPartyRoom,
@@ -264,7 +249,7 @@ export default function PartyRoom() {
           action: 'CREATE',
           targetCollection: 'party_room_bookings',
           targetId: record.id,
-          description: `Realizou agendamento do ${getPartyRoomLabel(selectedPartyRoom)} para a unidade ${unit?.unit_number} em ${formatDate(format(selectedDate, 'yyyy-MM-dd'))} (${periodLabels[selectedPeriod]}).`,
+          description: `Realizou agendamento do ${getPartyRoomLabel(selectedPartyRoom)} para a unidade ${unit?.unit_number} em ${formatDate(bookingDateKey(selectedDate))} (${periodLabels[selectedPeriod]}).`,
         });
       }
 
@@ -325,18 +310,11 @@ export default function PartyRoom() {
     }
   };
 
-  const upcomingBookings = bookings.filter(b => {
-    // Robust date creation for filtering
-    let normalizedString = b.booking_date.replace(' ', 'T');
-    if (normalizedString.length === 10) {
-      normalizedString += 'T00:00:00';
-    }
-    const bookingDate = new Date(normalizedString);
-    return !isBefore(bookingDate, startOfDay(new Date()));
-  });
+  const today = bookingDateKey(new Date());
+  const upcomingBookings = bookings.filter(b => b.booking_date && b.booking_date >= today);
 
   const selectedDateBookings = selectedDate
-    ? bookings.filter(b => b.booking_date === format(selectedDate, 'yyyy-MM-dd'))
+    ? bookings.filter(b => b.booking_date === bookingDateKey(selectedDate))
     : [];
 
   const availablePeriods = selectedDate ? getAvailablePeriods(selectedDate, selectedPartyRoom) : [];
@@ -461,7 +439,7 @@ export default function PartyRoom() {
               <div className="space-y-4 pt-4 border-t">
                 <div className="text-center">
                   <p className="font-medium">
-                    {formatDate(format(selectedDate, 'yyyy-MM-dd'), "EEEE, d 'de' MMMM 'de' yyyy")}
+                    {formatDate(bookingDateKey(selectedDate), "EEEE, d 'de' MMMM 'de' yyyy")}
                   </p>
                   {selectedDateBookings.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2 justify-center">
@@ -544,7 +522,7 @@ export default function PartyRoom() {
 
                     <Button
                       onClick={handleSubmit}
-                      disabled={submitting || !selectedUnit || !selectedPeriod}
+                      disabled={submitting || !selectedUnit || !availablePeriods.includes(selectedPeriod)}
                       className="w-full"
                     >
                       <PartyPopper className="h-4 w-4 mr-2" />
