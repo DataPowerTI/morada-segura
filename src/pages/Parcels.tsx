@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useCamera } from '@/hooks/use-camera';
 import { Plus, Package, Check, Search, MessageCircle, X } from 'lucide-react';
 import { z } from 'zod';
@@ -72,6 +72,14 @@ export default function Parcels() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'collected'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [query, setQuery] = useState({ page: 1, search: '', status: 'all' });
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [listError, setListError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [collectingId, setCollectingId] = useState<string | null>(null);
+  const requestVersion = useRef(0);
+  const pageSize = 30;
   const { toast } = useToast();
   const { user } = useAuth();
   const {
@@ -96,42 +104,76 @@ export default function Parcels() {
     },
   });
 
+  const formatParcel = (record: any): Parcel => ({
+    id: record.id,
+    protocol_number: record.protocol_number,
+    description: record.description,
+    photo_urls: (Array.isArray(record.photo) ? record.photo : (record.photo ? [record.photo] : []))
+      .map((photo: string) => getFileUrl('parcels', record.id, photo)),
+    status: record.status,
+    arrived_at: record.arrived_at,
+    collected_at: record.collected_at,
+    unit: record.expand?.unit_id || {
+      id: record.unit_id, unit_number: 'Não disponível', block: null,
+      resident_name: 'Unidade não disponível', phone_number: null,
+    },
+  });
+
+  const fetchParcels = useCallback(async (background = false) => {
+    const version = ++requestVersion.current;
+    if (!background) setLoading(true);
+    setRefreshing(true);
+    setListError(false);
+    const clauses: string[] = [];
+    if (query.status !== 'all') clauses.push(pb.filter('status = {:status}', { status: query.status }));
+    if (query.search.trim()) {
+      clauses.push(pb.filter(
+        '(description ~ {:term} || protocol_number ~ {:term} || unit_id.resident_name ~ {:term} || unit_id.unit_number ~ {:term})',
+        { term: query.search.trim() },
+      ));
+    }
+    try {
+      const result = await pb.collection('parcels').getList(query.page, pageSize, {
+        sort: '-arrived_at,-id', expand: 'unit_id', filter: clauses.join(' && '),
+        requestKey: null,
+      });
+      if (version !== requestVersion.current) return;
+      const lastPage = Math.max(1, result.totalPages);
+      if (query.page > lastPage) {
+        setQuery(current => ({ ...current, page: lastPage }));
+        return;
+      }
+      setParcels(result.items.map(formatParcel));
+      setTotalItems(result.totalItems);
+      setTotalPages(lastPage);
+    } catch (error) {
+      if (version !== requestVersion.current) return;
+      console.error('Error fetching parcels:', error);
+      setListError(true);
+    } finally {
+      if (version === requestVersion.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  }, [query]);
+
   useEffect(() => {
-    fetchParcels();
     fetchUnits();
   }, []);
 
-  async function fetchParcels() {
-    try {
-      const records = await pb.collection('parcels').getFullList({
-        sort: '-arrived_at',
-        expand: 'unit_id',
-      });
+  useEffect(() => {
+    void fetchParcels();
+    return () => { requestVersion.current++; };
+  }, [fetchParcels]);
 
-      const formattedParcels = records.map((record: any) => ({
-        id: record.id,
-        protocol_number: record.protocol_number,
-        description: record.description,
-        photo_urls: (Array.isArray(record.photo) ? record.photo : (record.photo ? [record.photo] : [])).map((p: string) => getFileUrl('parcels', record.id, p)),
-        status: record.status,
-        arrived_at: record.arrived_at,
-        collected_at: record.collected_at,
-        unit: record.expand?.unit_id ? {
-          id: record.expand.unit_id.id,
-          unit_number: record.expand.unit_id.unit_number,
-          block: record.expand.unit_id.block,
-          resident_name: record.expand.unit_id.resident_name,
-          phone_number: record.expand.unit_id.phone_number,
-        } : undefined
-      }));
-
-      setParcels(formattedParcels as any);
-    } catch (error) {
-      console.error('Error fetching parcels:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setQuery(current => current.search === searchTerm && current.status === filter
+        ? current : { page: 1, search: searchTerm, status: filter });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm, filter]);
 
   async function fetchUnits() {
     try {
@@ -194,7 +236,14 @@ export default function Parcels() {
         formData.append('photo', file);
       }
 
-      const record = await pb.collection('parcels').create(formData);
+      const record = await pb.collection('parcels').create(formData, { expand: 'unit_id' });
+      requestVersion.current++;
+      setParcels(current => [formatParcel(record), ...current.filter(p => p.id !== record.id)].slice(0, pageSize));
+      setSearchTerm('');
+      setFilter('all');
+      setQuery({ page: 1, search: '', status: 'all' });
+      setDialogOpen(false);
+      stopCamera();
 
       if (user) {
         const unit = units.find(u => u.id === data.unit_id);
@@ -216,7 +265,6 @@ export default function Parcels() {
       form.reset();
       setCapturedPhoto(null);
       setPhotos([]);
-      fetchParcels();
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -229,11 +277,17 @@ export default function Parcels() {
   }
 
   async function markAsCollected(parcel: Parcel) {
+    if (collectingId) return;
+    setCollectingId(parcel.id);
     try {
-      await pb.collection('parcels').update(parcel.id, {
+      const updated = await pb.collection('parcels').update(parcel.id, {
         status: 'collected',
         collected_at: new Date().toISOString(),
       });
+      requestVersion.current++;
+      setParcels(current => current.map(item => item.id === parcel.id
+        ? { ...item, status: 'collected', collected_at: updated.collected_at } : item));
+      void fetchParcels(true);
 
       if (user) {
         await logActivity({
@@ -250,13 +304,14 @@ export default function Parcels() {
         description: 'A encomenda foi marcada como retirada.',
       });
 
-      fetchParcels();
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Erro',
         description: 'Não foi possível confirmar a entrega.',
       });
+    } finally {
+      setCollectingId(null);
     }
   }
 
@@ -297,18 +352,6 @@ export default function Parcels() {
   const getUnitLabel = (unit: Unit) => {
     return `${unit.block ? `Bloco ${unit.block} - ` : ''}${unit.unit_number} (${unit.resident_name})`;
   };
-
-  const filteredParcels = parcels.filter((parcel) => {
-    const matchesFilter = filter === 'all' || parcel.status === filter;
-    const matchesSearch =
-      parcel.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      parcel.unit.resident_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      parcel.unit.unit_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (parcel.protocol_number?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
-    return matchesFilter && matchesSearch;
-  });
-
-  const pendingCount = parcels.filter((p) => p.status === 'pending').length;
 
   return (
     <MainLayout>
@@ -430,22 +473,36 @@ export default function Parcels() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas</SelectItem>
-            <SelectItem value="pending">Pendentes ({pendingCount})</SelectItem>
+            <SelectItem value="pending">Pendentes</SelectItem>
             <SelectItem value="collected">Retiradas</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          {refreshing ? 'Atualizando...' : `${totalItems} encomendas encontradas`}
+        </p>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" disabled={refreshing} onClick={() => void fetchParcels(true)}>Atualizar</Button>
+          <Button variant="outline" disabled={query.page <= 1 || refreshing} onClick={() => setQuery(q => ({ ...q, page: q.page - 1 }))}>Anterior</Button>
+          <span className="text-sm">Página {query.page} de {totalPages}</span>
+          <Button variant="outline" disabled={query.page >= totalPages || refreshing} onClick={() => setQuery(q => ({ ...q, page: q.page + 1 }))}>Próxima</Button>
+        </div>
+      </div>
+      {listError && (
+        <p role="alert" className="text-destructive mb-4">Não foi possível atualizar a lista. Clique em Atualizar para tentar novamente.</p>
+      )}
       {/* Parcels List */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {loading ? (
           <p className="text-muted-foreground col-span-full text-center py-8">Carregando...</p>
-        ) : filteredParcels.length === 0 ? (
+        ) : parcels.length === 0 ? (
           <p className="text-muted-foreground col-span-full text-center py-8">
             Nenhuma encomenda encontrada
           </p>
         ) : (
-          filteredParcels.map((parcel) => (
+          parcels.map((parcel) => (
             <Card key={parcel.id} className="overflow-hidden">
               {parcel.photo_urls && parcel.photo_urls.length > 0 && (
                 <ParcelPhotoGallery photos={parcel.photo_urls} description={parcel.description} />
@@ -483,6 +540,7 @@ export default function Parcels() {
                     <>
                       <Button
                         size="sm"
+                        disabled={collectingId !== null}
                         onClick={() => markAsCollected(parcel)}
                         className="flex-1"
                       >
