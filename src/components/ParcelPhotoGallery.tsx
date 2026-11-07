@@ -37,7 +37,7 @@ export function ParcelPhotoGallery({ photos, description }: ParcelPhotoGalleryPr
           className="group relative block aspect-video w-full cursor-zoom-in bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
           aria-label={`Visualizar ${photos.length} ${photos.length === 1 ? 'foto' : 'fotos'} da encomenda: ${description}`}
         >
-          <img src={photos[0]} alt="Foto da encomenda" className="h-full w-full object-cover" />
+          <img loading="lazy" decoding="async" src={photos[0]} alt="Foto da encomenda" className="h-full w-full object-cover" />
           <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-md bg-black/70 px-2 py-1 text-xs font-medium text-white">
             <ZoomIn className="h-4 w-4" aria-hidden="true" />
             {photos.length === 1 ? 'Ver foto' : `Ver ${photos.length} fotos`}
